@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FINDER_ND Network Dismantling System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-network-wired"></i>
+                FINDER_ND Network Dismantling System
+            </span>
+            <div class="navbar-nav">
+                <span class="nav-link" id="server-status">
+                    <i class="fas fa-circle text-secondary"></i>
+                    Connecting...
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <!-- Left Panel - Input -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-upload"></i> Graph Input</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- File Upload -->
+                        <div class="mb-3">
+                            <label for="graphFile" class="form-label">Upload Graph File</label>
+                            <input type="file" class="form-control" id="graphFile" accept=".txt,.json,.gml,.graphml">
+                            <div class="form-text">Supported formats: EdgeList (.txt), JSON, GML, GraphML</div>
+                        </div>
+
+                        <!-- Manual Input -->
+                        <div class="mb-3">
+                            <label for="graphInput" class="form-label">Or Enter Graph Data</label>
+                            <textarea class="form-control" id="graphInput" rows="6" 
+                                placeholder="Enter edge list (one edge per line):&#10;0 1&#10;1 2&#10;2 3&#10;..."></textarea>
+                        </div>
+
+                        <!-- Graph Info -->
+                        <div id="graphInfo" class="alert alert-info d-none">
+                            <h6>Graph Information:</h6>
+                            <div id="graphStats"></div>
+                        </div>
+
+                        <!-- Model Selection -->
+                        <div class="mb-3">
+                            <label for="modelSelect" class="form-label">Select Model</label>
+                            <select class="form-select" id="modelSelect">
+                                <option value="default">Loading models...</option>
+                            </select>
+                        </div>
+
+                        <!-- Parameters -->
+                        <div class="mb-3">
+                            <label for="stepRatio" class="form-label">Step Ratio</label>
+                            <input type="number" class="form-control" id="stepRatio" 
+                                   value="0.0025" min="0.001" max="1" step="0.001">
+                            <div class="form-text">Fraction of nodes to consider per iteration</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="maxIterations" class="form-label">Max Iterations</label>
+                            <input type="number" class="form-control" id="maxIterations" 
+                                   value="1000" min="100" max="10000" step="100">
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="dismantleBtn" disabled>
+                                <i class="fas fa-play"></i> Start Dismantling
+                            </button>
+                            <button class="btn btn-secondary" id="clearBtn">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress -->
+                <div class="card mt-3" id="progressCard" style="display: none;">
+                    <div class="card-header">
+                        <h6><i class="fas fa-spinner fa-spin"></i> Processing</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-2">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <div id="progressText">Initializing...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Results -->
+            <div class="col-md-8">
+                <!-- Graph Visualization -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-project-diagram"></i> Graph Visualization</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="graphViz" style="height: 400px; border: 1px solid #ddd;"></div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="card mt-3" id="resultsCard" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Dismantling Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Summary Stats -->
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-primary" id="nodesRemoved">-</h4>
+                                    <small>Nodes Removed</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-success" id="executionTime">-</h4>
+                                    <small>Execution Time (s)</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-info" id="robustness">-</h4>
+                                    <small>Robustness</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-warning" id="finalCC">-</h4>
+                                    <small>Final Largest CC</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <canvas id="dismantlingChart" width="400" height="200"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <canvas id="metricsChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Solution Details -->
+                        <div class="mt-3">
+                            <h6>Removal Sequence:</h6>
+                            <div id="solutionDetails" class="bg-light p-2" style="max-height: 200px; overflow-y: auto;">
+                                <!-- Solution details will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Export Options -->
+                        <div class="mt-3">
+                            <button class="btn btn-outline-primary btn-sm" id="exportSolution">
+                                <i class="fas fa-download"></i> Export Solution
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="exportResults">
+                                <i class="fas fa-file-export"></i> Export Results
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
