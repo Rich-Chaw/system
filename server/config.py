@@ -12,9 +12,9 @@ class Config:
     
     # Paths
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    MODELS_DIR = os.path.join(BASE_DIR, 'AAA-NetDQN', 'code', 'models')
-    FINDER_ND_DIR = os.path.join(BASE_DIR, 'AAA-NetDQN', 'code','FINDER_ND')
-    FINDER_CODE_DIR = os.path.join(BASE_DIR, 'AAA-NetDQN', 'code')
+    MODELS_DIR = os.path.join(BASE_DIR, '..','AAA-NetDQN', 'code', 'models')
+    FINDER_ND_DIR = os.path.join(BASE_DIR, '..','AAA-NetDQN', 'code','FINDER_ND')
+    FINDER_CODE_DIR = os.path.join(BASE_DIR, '..','AAA-NetDQN', 'code')
     
     
     # Model settings
