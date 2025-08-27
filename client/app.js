@@ -15,10 +15,13 @@ class FinderNDClient {
     }
     
     initializeComponents() {
-        // Initialize Graph Upload Component
-        this.components.graphUpload = new GraphUploadComponent('graph-input', {
-            serverUrl: this.serverUrl
-        });
+        // Get component manager instance first
+        this.componentManager = ComponentManager.getInstance();
+        
+        // Initialize Visualization Component first (so it's ready to receive events)
+        console.log('Initializing SimpleVisualizationComponent...');
+        this.components.visualization = new SimpleVisualizationComponent('graph-visualization');
+        console.log('SimpleVisualizationComponent initialized:', this.components.visualization);
         
         // Initialize Graph Statistics Component
         console.log('Initializing GraphStatisticsComponent...');
@@ -28,9 +31,6 @@ class FinderNDClient {
             expandable: true
         });
         console.log('GraphStatisticsComponent initialized:', this.components.graphStatistics);
-        
-        // Initialize Visualization Component
-        this.components.visualization = new VisualizationComponent('graph-visualization');
         
         // Initialize Multi-View Visualization Component
         this.components.multiViewVisualization = new MultiViewVisualizationComponent('multi-view-visualization', {
@@ -46,8 +46,10 @@ class FinderNDClient {
             serverUrl: this.serverUrl
         });
         
-        // Get component manager instance
-        this.componentManager = ComponentManager.getInstance();
+        // Initialize Graph Upload Component last (so other components are ready when it emits events)
+        this.components.graphUpload = new GraphUploadComponent('graph-input', {
+            serverUrl: this.serverUrl
+        });
         
         // Register components with the manager
         this.componentManager.registerComponent('graph-input', this.components.graphUpload);
@@ -55,10 +57,28 @@ class FinderNDClient {
         this.componentManager.registerComponent('graph-visualization', this.components.visualization);
         this.componentManager.registerComponent('multi-view-visualization', this.components.multiViewVisualization);
         this.componentManager.registerComponent('model-selection', this.components.modelSelection);
+        
+        console.log('All components registered. Event bus status:', this.componentManager.eventBus.getEvents());
+        
+        // Make components available globally for debugging
+        window.debugComponents = this.components;
+        window.testVisualization = () => {
+            console.log('Testing VisualizationComponent...');
+            if (this.components.visualization) {
+                this.components.visualization.testVisualization();
+            } else {
+                console.error('VisualizationComponent not found!');
+            }
+        };
     }
     
     setupGlobalEventListeners() {
         const eventBus = this.componentManager.eventBus;
+        
+        // Debug: Listen for graph:loaded events to see if they're being emitted
+        eventBus.on('graph:loaded', (data) => {
+            console.log('App received graph:loaded event:', data);
+        });
         
         // Graph info display is now handled by GraphStatisticsComponent
         

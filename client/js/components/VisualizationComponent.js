@@ -16,17 +16,37 @@ class VisualizationComponent extends BaseComponent {
     }
     
     init() {
+        console.log('VisualizationComponent.init() called for container:', this.containerId);
+        
         this.simulation = null;
         this.svg = null;
         this.currentGraphData = null;
         this.removedNodes = new Set();
+        this.pendingGraphData = null;
         
         super.init();
+        
+        console.log('VisualizationComponent initialized, container element:', this.container);
         
         // Listen for graph events
         this.on('graph:loaded', (data) => {
             console.log('VisualizationComponent received graph:loaded event:', data);
+            console.log('Graph data structure:', data.graphData);
+            console.log('SVG initialized:', !!this.svg);
+            
+            // Force re-initialization if needed
+            if (!this.svg) {
+                console.log('SVG not ready, initializing and then visualizing');
+                this.initializeVisualization();
+            }
+            
+            // Always try to visualize the graph
             this.visualizeGraph(data.graphData);
+        });
+        
+        // Also listen directly on the event bus for debugging
+        this.eventBus.on('graph:loaded', (data) => {
+            console.log('VisualizationComponent: Direct eventBus listener received graph:loaded:', data);
         });
         
         this.on('graph:cleared', () => {
@@ -36,6 +56,8 @@ class VisualizationComponent extends BaseComponent {
         this.on('dismantling:progress', (data) => {
             this.updateDismantlingVisualization(data);
         });
+        
+        console.log('VisualizationComponent event listeners set up');
     }
     
     setupEventListeners() {
@@ -49,17 +71,37 @@ class VisualizationComponent extends BaseComponent {
     
     render() {
         this.initializeVisualization();
+        
+        // If we have pending graph data, visualize it now
+        if (this.pendingGraphData) {
+            console.log('Rendering pending graph data:', this.pendingGraphData);
+            this.visualizeGraph(this.pendingGraphData);
+            this.pendingGraphData = null;
+        }
     }
     
     initializeVisualization() {
+        console.log('initializeVisualization called');
+        console.log('this.container:', this.container);
+        console.log('this.containerId:', this.containerId);
+        
         const container = this.container.querySelector('#graphViz');
-        if (!container) return;
+        console.log('Searching for #graphViz in container:', this.container);
+        console.log('Found graphViz container:', container);
+        
+        if (!container) {
+            console.error('graphViz container not found in', this.container);
+            console.error('Available elements in container:', this.container.innerHTML);
+            return;
+        }
         
         // Clear existing visualization
         container.innerHTML = '';
         
         const width = container.clientWidth || this.options.width;
         const height = this.options.height;
+        
+        console.log('Creating SVG with dimensions:', { width, height });
         
         this.svg = d3.select(container)
             .append('svg')
@@ -79,10 +121,28 @@ class VisualizationComponent extends BaseComponent {
         // Create container for graph elements
         this.svg.append('g')
             .attr('class', 'graph-container');
+            
+        console.log('SVG initialized successfully');
     }
     
     visualizeGraph(graphData) {
-        if (!this.svg || !graphData) return;
+        console.log('VisualizationComponent.visualizeGraph called with:', graphData);
+        
+        if (!graphData) {
+            console.log('No graphData provided');
+            return;
+        }
+        
+        // Ensure SVG is initialized
+        if (!this.svg) {
+            console.log('SVG not initialized, initializing now...');
+            this.initializeVisualization();
+        }
+        
+        if (!this.svg) {
+            console.error('Failed to initialize SVG');
+            return;
+        }
         
         this.currentGraphData = graphData;
         this.removedNodes.clear();
@@ -97,6 +157,7 @@ class VisualizationComponent extends BaseComponent {
         
         // Extract nodes and edges
         if (graphData.edges) {
+            console.log('Processing edges:', graphData.edges.length);
             graphData.edges.forEach(edge => {
                 nodeSet.add(edge[0]);
                 nodeSet.add(edge[1]);
@@ -106,6 +167,8 @@ class VisualizationComponent extends BaseComponent {
                     id: `${edge[0]}-${edge[1]}`
                 });
             });
+        } else {
+            console.log('No edges found in graphData');
         }
         
         nodeSet.forEach(nodeId => {
@@ -115,21 +178,56 @@ class VisualizationComponent extends BaseComponent {
             });
         });
         
-        if (nodes.length === 0) return;
+        console.log('Prepared visualization data:', { nodes: nodes.length, links: links.length });
         
-        const width = this.svg.attr('width');
-        const height = this.svg.attr('height');
+        if (nodes.length === 0) {
+            console.log('No nodes to visualize');
+            return;
+        }
         
-        // Create force simulation
+        const width = parseInt(this.svg.attr('width'));
+        const height = parseInt(this.svg.attr('height'));
+        
+        console.log('SVG dimensions for simulation:', { width, height });
+        
+        // Adjust parameters based on graph size
+        const nodeCount = nodes.length;
+        let nodeRadius, linkDistance, chargeStrength;
+        
+        if (nodeCount > 500) {
+            nodeRadius = 2;
+            linkDistance = 20;
+            chargeStrength = -30;
+        } else if (nodeCount > 100) {
+            nodeRadius = 3;
+            linkDistance = 30;
+            chargeStrength = -50;
+        } else if (nodeCount > 20) {
+            nodeRadius = 4;
+            linkDistance = 40;
+            chargeStrength = -80;
+        } else {
+            nodeRadius = this.options.nodeRadius;
+            linkDistance = this.options.linkDistance;
+            chargeStrength = this.options.chargeStrength;
+        }
+        
+        console.log('Using parameters for', nodeCount, 'nodes:', {
+            nodeRadius, linkDistance, chargeStrength
+        });
+        
+        // Create force simulation with adjusted parameters
         this.simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(d => d.id).distance(this.options.linkDistance))
-            .force('charge', d3.forceManyBody().strength(this.options.chargeStrength))
+            .force('link', d3.forceLink(links).id(d => d.id).distance(linkDistance))
+            .force('charge', d3.forceManyBody().strength(chargeStrength))
             .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(this.options.nodeRadius + 2));
+            .force('collision', d3.forceCollide().radius(nodeRadius + 1))
+            .alpha(1)
+            .alphaDecay(0.02);
         
         const container = this.svg.select('.graph-container');
         
-        // Add links
+        // Add links with adjusted styling
         const link = container.append('g')
             .attr('class', 'links')
             .selectAll('line')
@@ -137,23 +235,28 @@ class VisualizationComponent extends BaseComponent {
             .enter().append('line')
             .attr('class', 'link')
             .attr('stroke', '#999')
-            .attr('stroke-opacity', 0.6)
-            .attr('stroke-width', 1);
+            .attr('stroke-opacity', nodeCount > 100 ? 0.3 : 0.6)
+            .attr('stroke-width', nodeCount > 500 ? 0.5 : 1);
         
-        // Add nodes
+        console.log('Created links:', link.size());
+        
+        // Add nodes with adjusted styling
         const node = container.append('g')
             .attr('class', 'nodes')
             .selectAll('circle')
             .data(nodes)
             .enter().append('circle')
             .attr('class', 'node')
-            .attr('r', this.options.nodeRadius)
+            .attr('r', nodeRadius)
             .attr('fill', '#69b3a2')
             .attr('stroke', '#fff')
-            .attr('stroke-width', 2)
+            .attr('stroke-width', nodeCount > 100 ? 0.5 : 2)
+            .attr('opacity', nodeCount > 500 ? 0.8 : 1)
             .call(this.createDragBehavior());
+            
+        console.log('Created nodes:', node.size());
         
-        // Add labels for small graphs
+        // Add labels for small graphs only
         let labels = null;
         if (this.options.showLabels && nodes.length <= this.options.maxNodesForLabels) {
             labels = container.append('g')
@@ -162,14 +265,31 @@ class VisualizationComponent extends BaseComponent {
                 .data(nodes)
                 .enter().append('text')
                 .text(d => d.id)
-                .attr('font-size', '10px')
+                .attr('font-size', nodeCount > 20 ? '8px' : '10px')
                 .attr('text-anchor', 'middle')
                 .attr('dy', '.35em')
                 .attr('pointer-events', 'none');
         }
         
+        // Add zoom behavior for larger graphs
+        if (nodeCount > 50) {
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 10])
+                .on('zoom', (event) => {
+                    container.attr('transform', event.transform);
+                });
+            
+            this.svg.call(zoom);
+        }
+        
         // Update positions on simulation tick
+        let tickCount = 0;
         this.simulation.on('tick', () => {
+            tickCount++;
+            if (tickCount <= 5) {
+                console.log(`Simulation tick ${tickCount}, node positions:`, nodes.slice(0, 2).map(n => ({ id: n.id, x: n.x, y: n.y })));
+            }
+            
             link
                 .attr('x1', d => d.source.x)
                 .attr('y1', d => d.source.y)
@@ -186,6 +306,14 @@ class VisualizationComponent extends BaseComponent {
                     .attr('y', d => d.y);
             }
         });
+        
+        // For large graphs, stop simulation after a reasonable time
+        if (nodeCount > 100) {
+            setTimeout(() => {
+                this.simulation.alpha(0);
+                console.log('Stopped simulation for large graph');
+            }, 5000);
+        }
         
         // Store references for later updates
         this.nodes = nodes;
@@ -315,5 +443,20 @@ class VisualizationComponent extends BaseComponent {
             linkCount: this.links ? this.links.length : 0,
             removedCount: this.removedNodes.size
         };
+    }
+    
+    // Test method to verify the component is working
+    testVisualization() {
+        console.log('=== VisualizationComponent Test ===');
+        console.log('Container:', this.container);
+        console.log('Container ID:', this.containerId);
+        console.log('SVG initialized:', !!this.svg);
+        
+        const testData = {
+            edges: [[0, 1], [1, 2], [2, 0]]
+        };
+        
+        console.log('Testing with data:', testData);
+        this.visualizeGraph(testData);
     }
 }
