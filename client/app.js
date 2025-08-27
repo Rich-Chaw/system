@@ -33,6 +33,15 @@ class FinderNDClient {
         // Initialize Visualization Component
         this.components.visualization = new VisualizationComponent('graph-visualization');
         
+        // Initialize Multi-View Visualization Component
+        this.components.multiViewVisualization = new MultiViewVisualizationComponent('multi-view-visualization', {
+            maxViews: 6,
+            viewHeight: 350,
+            showLabels: true,
+            maxNodesForLabels: 50,
+            responsive: true
+        });
+        
         // Initialize Model Selection Component
         this.components.modelSelection = new ModelSelectionComponent('model-selection', {
             serverUrl: this.serverUrl
@@ -42,6 +51,7 @@ class FinderNDClient {
         this.componentManager.registerComponent('graph-input', this.components.graphUpload);
         this.componentManager.registerComponent('graph-statistics', this.components.graphStatistics);
         this.componentManager.registerComponent('graph-visualization', this.components.visualization);
+        this.componentManager.registerComponent('multi-view-visualization', this.components.multiViewVisualization);
         this.componentManager.registerComponent('model-selection', this.components.modelSelection);
     }
     

@@ -1253,3 +1253,511 @@ nhanced Graph Upload Component Styles */
 .status-indicator.pending {
     background-color: #ffc107;
 }
+
+/* Multi-View Visualization Component Styles */
+
+/* Main multi-view container */
+.multi-view-container {
+    margin-top: 1rem;
+}
+
+.multi-view-container .card-header {
+    background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+    border-bottom: 2px solid #e9ecef;
+}
+
+.multi-view-container .card-header h5 {
+    margin: 0;
+    color: #495057;
+    font-weight: 600;
+}
+
+.multi-view-container .card-header i {
+    color: #667eea;
+    margin-right: 0.5rem;
+}
+
+/* View controls */
+.view-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.view-controls .btn {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+}
+
+.view-controls .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Views grid layout */
+.views-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    min-height: 200px;
+}
+
+/* Individual visualization view */
+.visualization-view {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.visualization-view:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #667eea;
+}
+
+/* View header */
+.view-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #e9ecef;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.view-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.view-title h6 {
+    margin: 0;
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.view-title .model-name {
+    color: #667eea;
+}
+
+/* Status indicators for views */
+.status-indicator[data-status="ready"] i {
+    color: #6c757d;
+}
+
+.status-indicator[data-status="processing"] i {
+    color: #ffc107;
+    animation: spin 1s linear infinite;
+}
+
+.status-indicator[data-status="completed"] i {
+    color: #28a745;
+}
+
+.status-indicator[data-status="error"] i {
+    color: #dc3545;
+}
+
+.status-indicator[data-status="warning"] i {
+    color: #fd7e14;
+}
+
+/* View statistics */
+.view-stats {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* View content */
+.view-content {
+    position: relative;
+}
+
+.graph-visualization {
+    position: relative;
+    background: white;
+}
+
+.view-placeholder {
+    padding: 2rem 1rem;
+    color: #adb5bd;
+}
+
+.view-placeholder i {
+    opacity: 0.5;
+}
+
+/* No models message */
+.no-models-message {
+    grid-column: 1 / -1;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #adb5bd;
+}
+
+.no-models-message i {
+    opacity: 0.5;
+    margin-bottom: 1rem;
+}
+
+.no-models-message h6 {
+    color: #6c757d;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Synchronization states */
+.visualization-view.syncing {
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+.visualization-view.synchronized {
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+    animation: syncPulse 0.5s ease-out;
+}
+
+@keyframes syncPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.visualization-view.sync-enabled {
+    border-left: 4px solid #667eea;
+}
+
+/* Performance comparison highlights */
+.visualization-view.best-performance {
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+    animation: bestPerformance 3s ease-out;
+}
+
+.visualization-view.worst-performance {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.3);
+    animation: worstPerformance 3s ease-out;
+}
+
+@keyframes bestPerformance {
+    0%, 100% {
+        border-color: #e9ecef;
+        box-shadow: none;
+    }
+    50% {
+        border-color: #28a745;
+        box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+    }
+}
+
+@keyframes worstPerformance {
+    0%, 100% {
+        border-color: #e9ecef;
+        box-shadow: none;
+    }
+    50% {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.3);
+    }
+}
+
+/* Incomplete data state */
+.visualization-view.incomplete-data {
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff 0%, #fff9e6 100%);
+}
+
+.visualization-view.incomplete-data::after {
+    content: "⚠";
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    color: #ffc107;
+    font-size: 1rem;
+    z-index: 10;
+}
+
+/* Enhanced node and link styles for multi-view */
+.visualization-view .node {
+    transition: all 0.2s ease;
+}
+
+.visualization-view .node.removed {
+    fill: #ff6b6b;
+    opacity: 0.5;
+    stroke: #dc3545;
+    stroke-width: 1.5px;
+}
+
+.visualization-view .node.newly-removed {
+    fill: #dc3545;
+    stroke: #dc3545;
+    stroke-width: 2px;
+    animation: nodeRemoved 0.5s ease-out;
+}
+
+.visualization-view .node.newly-restored {
+    fill: #28a745;
+    stroke: #28a745;
+    stroke-width: 2px;
+    animation: nodeRestored 0.5s ease-out;
+}
+
+.visualization-view .node.recently-removed {
+    stroke: #dc3545;
+    stroke-width: 3px;
+    animation: recentlyRemovedPulse 1s ease-out;
+}
+
+.visualization-view .node.highlighted {
+    stroke: #ffc107;
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.6));
+}
+
+@keyframes nodeRemoved {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.3);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+}
+
+@keyframes nodeRestored {
+    0% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes recentlyRemovedPulse {
+    0%, 100% {
+        stroke-width: 1.5px;
+    }
+    50% {
+        stroke-width: 3px;
+    }
+}
+
+/* Enhanced link styles */
+.visualization-view .link {
+    transition: all 0.2s ease;
+}
+
+.visualization-view .link.removed {
+    stroke: #ccc;
+    stroke-opacity: 0.2;
+}
+
+/* Step indicators */
+.step-indicator {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 10;
+}
+
+/* Responsive design for multi-view */
+@media (max-width: 1200px) {
+    .views-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .views-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    
+    .view-header {
+        padding: 0.5rem 0.75rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .view-title h6 {
+        font-size: 0.75rem;
+    }
+    
+    .view-stats {
+        font-size: 0.625rem;
+    }
+    
+    .view-controls {
+        flex-direction: column;
+        gap: 0.25rem;
+        width: 100%;
+    }
+    
+    .view-controls .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .multi-view-container .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .no-models-message {
+        padding: 2rem 0.5rem;
+    }
+    
+    .no-models-message i {
+        font-size: 2rem;
+    }
+    
+    .view-placeholder {
+        padding: 1.5rem 0.5rem;
+    }
+    
+    .view-placeholder i {
+        font-size: 1.5rem;
+    }
+}
+
+/* Loading states for views */
+.visualization-view.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.visualization-view.loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 100;
+}
+
+/* View transition animations */
+.visualization-view {
+    animation: viewFadeIn 0.3s ease-out;
+}
+
+@keyframes viewFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Enhanced SVG styling for multi-view */
+.visualization-view svg {
+    border-radius: 0.375rem;
+    background: linear-gradient(135deg, #fff 0%, #fafbfc 100%);
+}
+
+/* Zoom and pan indicators */
+.visualization-view .zoom-indicator {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.visualization-view:hover .zoom-indicator {
+    opacity: 1;
+}
+
+/* Performance metrics overlay */
+.performance-overlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+    color: white;
+    padding: 0.5rem;
+    border-bottom-left-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 10;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.visualization-view:hover .performance-overlay {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Grid layout enhancements */
+.views-grid.single-view {
+    grid-template-columns: 1fr;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.views-grid.two-views {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.views-grid.three-views {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.views-grid.four-views {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.views-grid.many-views {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}

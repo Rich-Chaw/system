@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-View Visualization Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container-fluid mt-3">
+        <h2>Multi-View Visualization Component Test</h2>
+        
+        <!-- Test Controls -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Test Controls</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-primary" id="loadTestGraph">Load Test Graph</button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-success" id="addTestModel">Add Test Model</button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-warning" id="simulateResults">Simulate Results</button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-danger" id="clearAll">Clear All</button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4">
+                        <label for="stepSlider">Step:</label>
+                        <input type="range" class="form-range" id="stepSlider" min="0" max="10" value="0" disabled>
+                        <small class="text-muted">Step <span id="stepValue">0</span> of <span id="maxSteps">0</span></small>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="syncEnabled" checked>
+                            <label class="form-check-label" for="syncEnabled">
+                                Synchronization Enabled
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-info btn-sm" id="comparePerformance">Compare Performance</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Multi-View Visualization Container -->
+        <div id="multi-view-test-container">
+            <!-- Component will be rendered here -->
+        </div>
+        
+        <!-- Debug Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6>Debug Information</h6>
+            </div>
+            <div class="card-body">
+                <pre id="debugInfo">Component not initialized</pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/core/BaseComponent.js"></script>
+    <script src="js/components/MultiViewVisualizationComponent.js"></script>
+    
+    <script>
+        // Test script for Multi-View Visualization Component
+        let multiViewComponent;
+        let testModels = [];
+        let testGraphData = null;
+        
+        // Initialize component
+        document.addEventListener('DOMContentLoaded', () => {
+            multiViewComponent = new MultiViewVisualizationComponent('multi-view-test-container');
+            
+            // Setup test controls
+            setupTestControls();
+            
+            // Update debug info
+            updateDebugInfo();
+        });
+        
+        function setupTestControls() {
+            // Load test graph
+            document.getElementById('loadTestGraph').addEventListener('click', () => {
+                testGraphData = generateTestGraph();
+                multiViewComponent.setGraphData(testGraphData);
+                updateDebugInfo();
+            });
+            
+            // Add test model
+            document.getElementById('addTestModel').addEventListener('click', () => {
+                const modelId = `model-${testModels.length + 1}`;
+                const model = {
+                    id: modelId,
+                    name: `Test Model ${testModels.length + 1}`,
+                    enabled: true
+                };
+                testModels.push(model);
+                multiViewComponent.updateViews(testModels);
+                updateDebugInfo();
+            });
+            
+            // Simulate results
+            document.getElementById('simulateResults').addEventListener('click', () => {
+                if (testModels.length === 0 || !testGraphData) {
+                    alert('Please load a graph and add models first');
+                    return;
+                }
+                
+                const results = generateTestResults();
+                multiViewComponent.handleDismantlingResults(results);
+                
+                // Enable step slider
+                const stepSlider = document.getElementById('stepSlider');
+                stepSlider.max = 10;
+                stepSlider.disabled = false;
+                document.getElementById('maxSteps').textContent = '10';
+                
+                updateDebugInfo();
+            });
+            
+            // Clear all
+            document.getElementById('clearAll').addEventListener('click', () => {
+                testModels = [];
+                testGraphData = null;
+                multiViewComponent.updateViews([]);
+                multiViewComponent.clearAllViews();
+                
+                // Reset controls
+                const stepSlider = document.getElementById('stepSlider');
+                stepSlider.value = 0;
+                stepSlider.disabled = true;
+                document.getElementById('stepValue').textContent = '0';
+                document.getElementById('maxSteps').textContent = '0';
+                
+                updateDebugInfo();
+            });
+            
+            // Step slider
+            document.getElementById('stepSlider').addEventListener('input', (e) => {
+                const step = parseInt(e.target.value);
+                document.getElementById('stepValue').textContent = step;
+                multiViewComponent.updateToStep(step);
+            });
+            
+            // Sync toggle
+            document.getElementById('syncEnabled').addEventListener('change', (e) => {
+                multiViewComponent.setSynchronizationEnabled(e.target.checked);
+                updateDebugInfo();
+            });
+            
+            // Compare performance
+            document.getElementById('comparePerformance').addEventListener('click', () => {
+                const performance = multiViewComponent.compareModelPerformance();
+                if (performance) {
+                    console.log('Performance comparison:', performance);
+                    alert('Performance comparison logged to console');
+                } else {
+                    alert('No performance data available');
+                }
+            });
+        }
+        
+        function generateTestGraph() {
+            // Generate a simple test graph
+            const nodes = [];
+            const edges = [];
+            
+            // Create a small network
+            for (let i = 0; i < 10; i++) {
+                nodes.push({ id: i });
+            }
+            
+            // Create edges (ring + some random connections)
+            for (let i = 0; i < 10; i++) {
+                edges.push([i, (i + 1) % 10]);
+            }
+            
+            // Add some random edges
+            for (let i = 0; i < 5; i++) {
+                const source = Math.floor(Math.random() * 10);
+                const target = Math.floor(Math.random() * 10);
+                if (source !== target) {
+                    edges.push([source, target]);
+                }
+            }
+            
+            return { nodes, edges };
+        }
+        
+        function generateTestResults() {
+            const results = {};
+            
+            testModels.forEach((model, index) => {
+                const stepByStep = [];
+                const solution = [];
+                
+                // Generate step-by-step dismantling data
+                for (let step = 0; step <= 10; step++) {
+                    const nodeRemoved = step < 10 ? step : null;
+                    const removedNodes = solution.slice();
+                    if (nodeRemoved !== null) {
+                        solution.push(nodeRemoved);
+                        removedNodes.push(nodeRemoved);
+                    }
+                    
+                    stepByStep.push({
+                        step: step,
+                        nodeRemoved: nodeRemoved,
+                        removedNodes: removedNodes.slice(),
+                        remainingNodes: 10 - removedNodes.length,
+                        largestCCSize: Math.max(0, 10 - removedNodes.length - Math.floor(step * 0.5)),
+                        networkState: {
+                            activeNodes: Array.from({length: 10}, (_, i) => i).filter(i => !removedNodes.includes(i)),
+                            removedNodes: removedNodes.slice()
+                        }
+                    });
+                }
+                
+                results[model.id] = {
+                    solution: solution,
+                    stepByStep: stepByStep,
+                    metrics: {
+                        execution_time: Math.random() * 5 + 1,
+                        robustness: Math.random() * 0.5 + 0.3,
+                        final_largest_cc: Math.floor(Math.random() * 3)
+                    }
+                };
+            });
+            
+            return results;
+        }
+        
+        function updateDebugInfo() {
+            const debugInfo = {
+                componentInitialized: !!multiViewComponent,
+                modelsCount: testModels.length,
+                hasGraphData: !!testGraphData,
+                viewsState: multiViewComponent ? multiViewComponent.getViewsState() : null,
+                syncStatus: multiViewComponent ? multiViewComponent.getSynchronizationStatus() : null
+            };
+            
+            document.getElementById('debugInfo').textContent = JSON.stringify(debugInfo, null, 2);
+        }
+    </script>
+</body>
+</html>
