@@ -30,16 +30,19 @@ class MultiViewVisualizationComponent extends BaseComponent {
         
         // Listen for model configuration changes
         this.on('models:changed', (data) => {
+            console.log('MultiViewVisualizationComponent received models:changed event:', data);
             this.updateViews(data.models);
         });
         
         // Listen for graph data changes
         this.on('graph:loaded', (data) => {
+            console.log('MultiViewVisualizationComponent received graph:loaded event:', data);
             this.setGraphData(data.graphData);
         });
         
         // Listen for dismantling results
         this.on('dismantling:completed', (data) => {
+            console.log('MultiViewVisualizationComponent received dismantling:completed event:', data);
             this.handleDismantlingResults(data.results);
         });
         

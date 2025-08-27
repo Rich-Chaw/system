@@ -416,7 +416,11 @@ class GraphUploadComponent extends BaseComponent {
             this.showManualInputFeedback(result.edges.length, result.nodes.size, result.warnings);
             
             if (result.edges.length > 0) {
-                const graphData = { edges: result.edges };
+                const nodes = Array.from(result.nodes).map(id => ({ id }));
+                const graphData = { 
+                    nodes: nodes,
+                    edges: result.edges 
+                };
                 this.currentGraph = graphData;
                 
                 const graphInfo = {
@@ -433,6 +437,7 @@ class GraphUploadComponent extends BaseComponent {
                 });
                 
                 // Emit event for other components
+                console.log('GraphUploadComponent emitting graph:loaded event:', { graphData, graphInfo });
                 this.emit('graph:loaded', {
                     graphData: graphData,
                     graphInfo: graphInfo

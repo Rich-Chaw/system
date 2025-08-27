@@ -2,7 +2,6 @@
 class FinderNDClient {
     constructor() {
         this.serverUrl = 'http://localhost:5000';
-        this.componentManager = ComponentManager.getInstance();
         this.components = {};
         this.currentResults = null;
         
@@ -46,6 +45,9 @@ class FinderNDClient {
         this.components.modelSelection = new ModelSelectionComponent('model-selection', {
             serverUrl: this.serverUrl
         });
+        
+        // Get component manager instance
+        this.componentManager = ComponentManager.getInstance();
         
         // Register components with the manager
         this.componentManager.registerComponent('graph-input', this.components.graphUpload);
@@ -319,9 +321,6 @@ class FinderNDClient {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize component manager first
-    const componentManager = ComponentManager.getInstance();
-    
     // Initialize the main application
     new FinderNDClient();
 });

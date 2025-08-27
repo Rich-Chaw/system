@@ -194,6 +194,8 @@ class ModelSelectionComponent extends BaseComponent {
         
         // Emit event for other components
         this.emit('model:added', { modelId: modelConfig.id, config: modelConfig });
+        console.log('ModelSelectionComponent emitting models:changed event:', this.modelConfigurations);
+        this.emit('models:changed', { models: this.modelConfigurations });
     }
 
 
@@ -208,6 +210,7 @@ class ModelSelectionComponent extends BaseComponent {
         this.setState({ modelConfigurations: [...this.modelConfigurations] });
 
         this.emit('model:removed', { modelId });
+        this.emit('models:changed', { models: this.modelConfigurations });
         this.performRealTimeValidation();
         this.render();
     }
@@ -220,6 +223,7 @@ class ModelSelectionComponent extends BaseComponent {
         this.setState({ modelConfigurations: [...this.modelConfigurations] });
         
         this.emit('model:toggled', { modelId, enabled, config });
+        this.emit('models:changed', { models: this.modelConfigurations });
         this.performRealTimeValidation();
     }
 
@@ -796,6 +800,7 @@ class ModelSelectionComponent extends BaseComponent {
             }
 
             this.setState({ lastResults: results });
+            console.log('ModelSelectionComponent emitting dismantling:completed event:', results);
             this.emit('dismantling:completed', {
                 results: results,
                 modelConfigurations: enabledModels

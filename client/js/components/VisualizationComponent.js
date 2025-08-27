@@ -25,6 +25,7 @@ class VisualizationComponent extends BaseComponent {
         
         // Listen for graph events
         this.on('graph:loaded', (data) => {
+            console.log('VisualizationComponent received graph:loaded event:', data);
             this.visualizeGraph(data.graphData);
         });
         
