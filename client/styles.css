@@ -10,7 +10,7 @@ body {
 }
 
 .card {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border: none;
     border-radius: 8px;
 }
@@ -140,9 +140,17 @@ canvas {
 
 /* Animations */
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 .processing {
@@ -154,11 +162,11 @@ canvas {
     .container-fluid {
         padding: 0 10px;
     }
-    
+
     .card {
         margin-bottom: 15px;
     }
-    
+
     #graphViz {
         height: 300px !important;
     }
@@ -181,14 +189,16 @@ canvas {
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 3px solid rgba(255,255,255,.3);
+    border: 3px solid rgba(255, 255, 255, .3);
     border-radius: 50%;
     border-top-color: #fff;
     animation: spin 1s ease-in-out infinite;
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Error states */
@@ -226,7 +236,9 @@ canvas {
 
 .form-control[type="file"]::-webkit-file-upload-button:hover {
     background: #5a6fd8;
-}/* E
+}
+
+/* E
 nhanced Graph Upload Component Styles */
 
 /* Upload mode tabs */
@@ -281,9 +293,21 @@ nhanced Graph Upload Component Styles */
 }
 
 @keyframes bounce {
-    0%, 20%, 60%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-10px); }
-    80% { transform: translateY(-5px); }
+
+    0%,
+    20%,
+    60%,
+    100% {
+        transform: translateY(0);
+    }
+
+    40% {
+        transform: translateY(-10px);
+    }
+
+    80% {
+        transform: translateY(-5px);
+    }
 }
 
 /* Manual input feedback */
@@ -381,8 +405,15 @@ nhanced Graph Upload Component Styles */
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Responsive adjustments for upload interface */
@@ -391,19 +422,19 @@ nhanced Graph Upload Component Styles */
         font-size: 0.875rem;
         padding: 0.5rem 0.75rem;
     }
-    
+
     .nav-tabs .nav-link i {
         margin-right: 0.25rem;
     }
-    
+
     .upload-drop-zone {
         margin-top: 0.5rem;
     }
-    
+
     .upload-drop-zone .fa-cloud-upload-alt {
         font-size: 2rem !important;
     }
-    
+
     .parameter-group {
         padding: 0.75rem;
     }
@@ -460,7 +491,7 @@ nhanced Graph Upload Component Styles */
 
 .stat-item:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .stat-value {
@@ -479,15 +510,46 @@ nhanced Graph Upload Component Styles */
 }
 
 /* Color variations for different stats */
-.stat-item .text-primary { border-left-color: #667eea; }
-.stat-item .text-success { border-left-color: #28a745; }
-.stat-item .text-info { border-left-color: #17a2b8; }
-.stat-item .text-warning { border-left-color: #ffc107; }
-.stat-item .text-purple { color: #6f42c1 !important; border-left-color: #6f42c1; }
-.stat-item .text-orange { color: #fd7e14 !important; border-left-color: #fd7e14; }
-.stat-item .text-teal { color: #20c997 !important; border-left-color: #20c997; }
-.stat-item .text-indigo { color: #6610f2 !important; border-left-color: #6610f2; }
-.stat-item .text-pink { color: #e83e8c !important; border-left-color: #e83e8c; }
+.stat-item .text-primary {
+    border-left-color: #667eea;
+}
+
+.stat-item .text-success {
+    border-left-color: #28a745;
+}
+
+.stat-item .text-info {
+    border-left-color: #17a2b8;
+}
+
+.stat-item .text-warning {
+    border-left-color: #ffc107;
+}
+
+.stat-item .text-purple {
+    color: #6f42c1 !important;
+    border-left-color: #6f42c1;
+}
+
+.stat-item .text-orange {
+    color: #fd7e14 !important;
+    border-left-color: #fd7e14;
+}
+
+.stat-item .text-teal {
+    color: #20c997 !important;
+    border-left-color: #20c997;
+}
+
+.stat-item .text-indigo {
+    color: #6610f2 !important;
+    border-left-color: #6610f2;
+}
+
+.stat-item .text-pink {
+    color: #e83e8c !important;
+    border-left-color: #e83e8c;
+}
 
 /* Advanced statistics section */
 .advanced-stats {
@@ -510,6 +572,7 @@ nhanced Graph Upload Component Styles */
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -547,7 +610,7 @@ nhanced Graph Upload Component Styles */
     background: white;
     border-radius: 0.5rem;
     padding: 1rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     border: 1px solid #e9ecef;
 }
 
@@ -582,24 +645,24 @@ nhanced Graph Upload Component Styles */
         padding: 0.75rem;
         margin-bottom: 0.75rem;
     }
-    
+
     .stat-value {
         font-size: 1.25rem;
     }
-    
+
     .stat-label {
         font-size: 0.75rem;
     }
-    
+
     .stats-expand-btn {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .chart-container {
         padding: 0.5rem;
     }
-    
+
     .advanced-stats h6 {
         font-size: 1rem;
     }
@@ -609,11 +672,11 @@ nhanced Graph Upload Component Styles */
     .stat-item {
         padding: 0.5rem;
     }
-    
+
     .stat-value {
         font-size: 1.1rem;
     }
-    
+
     .degree-distribution-section {
         margin-top: 1rem;
         padding-top: 1rem;
@@ -631,6 +694,7 @@ nhanced Graph Upload Component Styles */
     0% {
         background-position: -200% 0;
     }
+
     100% {
         background-position: 200% 0;
     }
@@ -655,7 +719,7 @@ nhanced Graph Upload Component Styles */
 }
 
 #graph-statistics .card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 #graph-statistics .card-header {
@@ -715,7 +779,7 @@ nhanced Graph Upload Component Styles */
 }
 
 .model-configuration:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border-color: #667eea !important;
 }
 
@@ -807,6 +871,7 @@ nhanced Graph Upload Component Styles */
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -863,26 +928,26 @@ nhanced Graph Upload Component Styles */
         margin-bottom: 1rem;
         padding: 1rem !important;
     }
-    
+
     .model-config-header {
         flex-direction: column;
         align-items: flex-start !important;
         gap: 0.5rem;
     }
-    
+
     .remove-model-btn {
         align-self: flex-end;
     }
-    
+
     .add-model-btn {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .model-configuration .form-label {
         font-size: 0.75rem;
     }
-    
+
     .model-configuration .form-control,
     .model-configuration .form-select {
         font-size: 0.75rem;
@@ -895,16 +960,16 @@ nhanced Graph Upload Component Styles */
         align-items: flex-start !important;
         gap: 0.5rem;
     }
-    
+
     .add-model-btn {
         align-self: stretch;
         text-align: center;
     }
-    
+
     .model-configuration .row {
         margin: 0;
     }
-    
+
     .model-configuration .col-md-6 {
         padding: 0;
         margin-bottom: 0.75rem;
@@ -1066,27 +1131,28 @@ nhanced Graph Upload Component Styles */
 
 /* Responsive Enhancements for Validation */
 @media (max-width: 768px) {
+
     .validation-summary,
     .conflict-warnings {
         font-size: 0.875rem;
         padding: 0.75rem;
     }
-    
+
     .model-config-header .btn-group {
         flex-direction: column;
         width: auto;
     }
-    
+
     .model-config-header .btn-group .btn {
         border-radius: 0.25rem !important;
         border: 1px solid;
         margin-bottom: 0.25rem;
     }
-    
+
     .model-config-header .btn-group .btn:last-child {
         margin-bottom: 0;
     }
-    
+
     .advanced-options {
         padding: 0.75rem;
     }
@@ -1107,7 +1173,7 @@ nhanced Graph Upload Component Styles */
 }
 
 .model-configuration .card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Validation states for model configurations */
@@ -1143,7 +1209,7 @@ nhanced Graph Upload Component Styles */
 
 .add-model-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Remove model button styling */
@@ -1173,7 +1239,7 @@ nhanced Graph Upload Component Styles */
 
 #dismantleBtn:not(:disabled):hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
 #dismantleBtn:disabled {
@@ -1207,11 +1273,11 @@ nhanced Graph Upload Component Styles */
         flex-direction: column;
         align-items: flex-start !important;
     }
-    
+
     .model-configuration .card-header .btn-group {
         margin-top: 0.5rem;
     }
-    
+
     .model-configuration .row .col-md-6 {
         margin-bottom: 1rem;
     }
@@ -1223,6 +1289,7 @@ nhanced Graph Upload Component Styles */
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1292,7 +1359,7 @@ nhanced Graph Upload Component Styles */
 
 .view-controls .btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Views grid layout */
@@ -1314,7 +1381,7 @@ nhanced Graph Upload Component Styles */
 }
 
 .visualization-view:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-color: #667eea;
 }
 
@@ -1427,9 +1494,11 @@ nhanced Graph Upload Component Styles */
     0% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.02);
     }
+
     100% {
         transform: scale(1);
     }
@@ -1453,10 +1522,13 @@ nhanced Graph Upload Component Styles */
 }
 
 @keyframes bestPerformance {
-    0%, 100% {
+
+    0%,
+    100% {
         border-color: #e9ecef;
         box-shadow: none;
     }
+
     50% {
         border-color: #28a745;
         box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
@@ -1464,10 +1536,13 @@ nhanced Graph Upload Component Styles */
 }
 
 @keyframes worstPerformance {
-    0%, 100% {
+
+    0%,
+    100% {
         border-color: #e9ecef;
         box-shadow: none;
     }
+
     50% {
         border-color: #dc3545;
         box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.3);
@@ -1533,10 +1608,12 @@ nhanced Graph Upload Component Styles */
         transform: scale(1);
         opacity: 1;
     }
+
     50% {
         transform: scale(1.3);
         opacity: 0.8;
     }
+
     100% {
         transform: scale(1);
         opacity: 0.5;
@@ -1548,10 +1625,12 @@ nhanced Graph Upload Component Styles */
         transform: scale(1);
         opacity: 0.5;
     }
+
     50% {
         transform: scale(1.2);
         opacity: 0.8;
     }
+
     100% {
         transform: scale(1);
         opacity: 1;
@@ -1559,9 +1638,12 @@ nhanced Graph Upload Component Styles */
 }
 
 @keyframes recentlyRemovedPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         stroke-width: 1.5px;
     }
+
     50% {
         stroke-width: 3px;
     }
@@ -1603,33 +1685,33 @@ nhanced Graph Upload Component Styles */
         grid-template-columns: 1fr;
         gap: 0.75rem;
     }
-    
+
     .view-header {
         padding: 0.5rem 0.75rem;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.25rem;
     }
-    
+
     .view-title h6 {
         font-size: 0.75rem;
     }
-    
+
     .view-stats {
         font-size: 0.625rem;
     }
-    
+
     .view-controls {
         flex-direction: column;
         gap: 0.25rem;
         width: 100%;
     }
-    
+
     .view-controls .btn {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .multi-view-container .card-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1641,15 +1723,15 @@ nhanced Graph Upload Component Styles */
     .no-models-message {
         padding: 2rem 0.5rem;
     }
-    
+
     .no-models-message i {
         font-size: 2rem;
     }
-    
+
     .view-placeholder {
         padding: 1.5rem 0.5rem;
     }
-    
+
     .view-placeholder i {
         font-size: 1.5rem;
     }
@@ -1686,6 +1768,7 @@ nhanced Graph Upload Component Styles */
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);

@@ -63,19 +63,11 @@ class FinderNDClient {
         // Make components available globally for debugging
         window.debugComponents = this.components;
         window.testVisualization = () => {
-            console.log('Testing VisualizationComponent...');
+            console.log('Testing SimpleVisualizationComponent...');
             if (this.components.visualization) {
                 this.components.visualization.testVisualization();
             } else {
-                console.error('VisualizationComponent not found!');
-            }
-        };
-        window.testVisualizationWithSimpleData = () => {
-            console.log('Testing VisualizationComponent with simple data...');
-            if (this.components.visualization) {
-                this.components.visualization.testWithSimpleData();
-            } else {
-                console.error('VisualizationComponent not found!');
+                console.error('SimpleVisualizationComponent not found!');
             }
         };
     }
@@ -269,7 +261,7 @@ class FinderNDClient {
         detailsDiv.innerHTML = html;
     }
 
-    // Graph visualization is now handled by VisualizationComponent
+    // Graph visualization is now handled by SimpleVisualizationComponent
 
     showProgress(message) {
         const progressCard = document.getElementById('progressCard');
