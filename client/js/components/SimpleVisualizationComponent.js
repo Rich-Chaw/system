@@ -8,7 +8,9 @@ class SimpleVisualizationComponent extends BaseComponent {
             height: 400,
             nodeRadius: 5,
             linkDistance: 50,
-            chargeStrength: -100
+            chargeStrength: -100,
+            showLabels: true,
+            maxNodesForLabels: 50
         };
     }
     
@@ -25,6 +27,15 @@ class SimpleVisualizationComponent extends BaseComponent {
         this.on('graph:loaded', (data) => {
             console.log('SimpleVisualizationComponent: Received graph:loaded event');
             this.createSimpleVisualization(data.graphData);
+        });
+        
+        // Advanced event listeners
+        this.on('graph:cleared', () => {
+            this.clearVisualization();
+        });
+        
+        this.on('dismantling:progress', (data) => {
+            this.updateDismantlingVisualization(data);
         });
         
         console.log('SimpleVisualizationComponent: Initialization complete');
@@ -189,7 +200,23 @@ class SimpleVisualizationComponent extends BaseComponent {
             .attr('fill', '#69b3a2')
             .attr('stroke', '#fff')
             .attr('stroke-width', nodeCount > 100 ? 0.5 : 1.5)
-            .attr('opacity', nodeCount > 500 ? 0.8 : 1);
+            .attr('opacity', nodeCount > 500 ? 0.8 : 1)
+            .call(this.createDragBehavior());
+        
+        // Add labels for small graphs
+        let labels = null;
+        if (nodes.length <= 50) {
+            labels = this.graphContainer.append('g')
+                .attr('class', 'labels')
+                .selectAll('text')
+                .data(nodes)
+                .enter().append('text')
+                .text(d => d.id)
+                .attr('font-size', nodeCount > 20 ? '8px' : '10px')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '.35em')
+                .attr('pointer-events', 'none');
+        }
         
         // Add zoom behavior (same as working MultiView)
         const zoom = d3.zoom()
@@ -211,6 +238,12 @@ class SimpleVisualizationComponent extends BaseComponent {
             node
                 .attr('cx', d => d.x)
                 .attr('cy', d => d.y);
+            
+            if (labels) {
+                labels
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            }
         });
         
         // For large graphs, stop simulation after a reasonable time
@@ -221,6 +254,113 @@ class SimpleVisualizationComponent extends BaseComponent {
             }, 5000);
         }
         
+        // Store references for advanced features
+        this.simulation = simulation;
+        this.nodes = nodes;
+        this.links = links;
+        this.nodeSelection = node;
+        this.linkSelection = link;
+        this.labelSelection = labels;
+        this.removedNodes = new Set();
+        
         console.log('SimpleVisualizationComponent: Visualization created successfully');
+    }
+    
+    createDragBehavior() {
+        return d3.drag()
+            .on('start', (event, d) => {
+                if (!event.active && this.simulation) this.simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            })
+            .on('drag', (event, d) => {
+                d.fx = event.x;
+                d.fy = event.y;
+            })
+            .on('end', (event, d) => {
+                if (!event.active && this.simulation) this.simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            });
+    }
+    
+    // Advanced feature: Update dismantling visualization
+    updateDismantlingVisualization(data) {
+        if (!this.nodeSelection || !data.removedNodes) return;
+        
+        // Update removed nodes set
+        data.removedNodes.forEach(nodeId => {
+            this.removedNodes.add(nodeId);
+        });
+        
+        // Update node appearance
+        this.nodeSelection
+            .classed('removed', d => this.removedNodes.has(d.id))
+            .attr('fill', d => this.removedNodes.has(d.id) ? '#ff6b6b' : '#69b3a2')
+            .attr('opacity', d => this.removedNodes.has(d.id) ? 0.7 : 1);
+        
+        // Update link appearance
+        if (this.linkSelection) {
+            this.linkSelection
+                .classed('removed', d => 
+                    this.removedNodes.has(d.source.id) || this.removedNodes.has(d.target.id))
+                .attr('stroke', d => 
+                    this.removedNodes.has(d.source.id) || this.removedNodes.has(d.target.id) ? '#ccc' : '#999')
+                .attr('stroke-opacity', d => 
+                    this.removedNodes.has(d.source.id) || this.removedNodes.has(d.target.id) ? 0.3 : 0.6);
+        }
+        
+        this.emit('visualization:updated', { 
+            removedCount: this.removedNodes.size,
+            totalNodes: this.nodes ? this.nodes.length : 0
+        });
+    }
+    
+    // Advanced feature: Clear visualization
+    clearVisualization() {
+        if (this.svg) {
+            this.graphContainer.selectAll('*').remove();
+        }
+        
+        if (this.simulation) {
+            this.simulation.stop();
+            this.simulation = null;
+        }
+        
+        this.removedNodes.clear();
+        this.nodes = null;
+        this.links = null;
+        this.nodeSelection = null;
+        this.linkSelection = null;
+        this.labelSelection = null;
+        
+        this.emit('visualization:cleared');
+    }
+    
+    // Advanced feature: Highlight specific nodes
+    highlightNodes(nodeIds, className = 'highlighted') {
+        if (!this.nodeSelection) return;
+        
+        this.nodeSelection
+            .classed(className, d => nodeIds.includes(d.id));
+    }
+    
+    // Advanced feature: Reset all highlights
+    resetHighlights() {
+        if (!this.nodeSelection) return;
+        
+        this.nodeSelection
+            .attr('class', 'node')
+            .classed('removed', d => this.removedNodes.has(d.id));
+    }
+    
+    // Advanced feature: Get current visualization state
+    getVisualizationState() {
+        return {
+            hasGraph: !!this.nodes,
+            nodeCount: this.nodes ? this.nodes.length : 0,
+            linkCount: this.links ? this.links.length : 0,
+            removedCount: this.removedNodes.size
+        };
     }
 }
