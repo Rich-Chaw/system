@@ -1,50 +1,96 @@
-// FINDER_ND Client Application
+// FINDER_ND Client Application - Refactored with Component Architecture
 class FinderNDClient {
     constructor() {
         this.serverUrl = 'http://localhost:5000';
-        this.currentGraph = null;
+        this.componentManager = ComponentManager.getInstance();
+        this.components = {};
         this.currentResults = null;
-        this.graphViz = null;
         
         this.init();
     }
     
     init() {
-        this.setupEventListeners();
+        this.initializeComponents();
+        this.setupGlobalEventListeners();
         this.checkServerStatus();
-        this.loadAvailableModels();
-        this.initializeGraphVisualization();
     }
     
-    setupEventListeners() {
-        // File upload
-        document.getElementById('graphFile').addEventListener('change', (e) => {
-            this.handleFileUpload(e.target.files[0]);
+    initializeComponents() {
+        // Initialize Graph Upload Component
+        this.components.graphUpload = new GraphUploadComponent('graph-input', {
+            serverUrl: this.serverUrl
         });
         
-        // Manual input
-        document.getElementById('graphInput').addEventListener('input', (e) => {
-            this.handleManualInput(e.target.value);
+        // Initialize Graph Statistics Component
+        console.log('Initializing GraphStatisticsComponent...');
+        this.components.graphStatistics = new GraphStatisticsComponent('graph-statistics-container', {
+            showAdvancedStats: true,
+            showDegreeDistribution: true,
+            expandable: true
+        });
+        console.log('GraphStatisticsComponent initialized:', this.components.graphStatistics);
+        
+        // Initialize Visualization Component
+        this.components.visualization = new VisualizationComponent('graph-visualization');
+        
+        // Initialize Model Selection Component
+        this.components.modelSelection = new ModelSelectionComponent('model-selection', {
+            serverUrl: this.serverUrl
         });
         
-        // Dismantle button
-        document.getElementById('dismantleBtn').addEventListener('click', () => {
-            this.startDismantling();
+        // Register components with the manager
+        this.componentManager.registerComponent('graph-input', this.components.graphUpload);
+        this.componentManager.registerComponent('graph-statistics', this.components.graphStatistics);
+        this.componentManager.registerComponent('graph-visualization', this.components.visualization);
+        this.componentManager.registerComponent('model-selection', this.components.modelSelection);
+    }
+    
+    setupGlobalEventListeners() {
+        const eventBus = this.componentManager.eventBus;
+        
+        // Graph info display is now handled by GraphStatisticsComponent
+        
+        // Listen for dismantling completion to show results
+        eventBus.on('dismantling:completed', (data) => {
+            this.currentResults = data.results;
+            this.displayResults(data.results);
         });
         
-        // Clear button
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            this.clearAll();
+        // Listen for dismantling progress updates
+        eventBus.on('dismantling:progress', (data) => {
+            this.updateProgress(data);
         });
         
+        // Listen for component errors
+        eventBus.on('component:error', (data) => {
+            console.error(`Component error in ${data.componentId}:`, data.error);
+        });
+        
+        // Listen for global clear events
+        eventBus.on('app:clear-all', () => {
+            // Components will handle their own clearing
+        });
+        
+        // Setup export button listeners (these remain global for now)
+        this.setupExportListeners();
+    }
+    
+    setupExportListeners() {
         // Export buttons
-        document.getElementById('exportSolution').addEventListener('click', () => {
-            this.exportSolution();
-        });
+        const exportSolutionBtn = document.getElementById('exportSolution');
+        const exportResultsBtn = document.getElementById('exportResults');
         
-        document.getElementById('exportResults').addEventListener('click', () => {
-            this.exportResults();
-        });
+        if (exportSolutionBtn) {
+            exportSolutionBtn.addEventListener('click', () => {
+                this.exportSolution();
+            });
+        }
+        
+        if (exportResultsBtn) {
+            exportResultsBtn.addEventListener('click', () => {
+                this.exportResults();
+            });
+        }
     }
     
     async checkServerStatus() {
@@ -63,184 +109,17 @@ class FinderNDClient {
         
         if (connected) {
             statusElement.innerHTML = '<i class="fas fa-circle status-connected"></i> Connected';
-            statusElement.title = `Server healthy. Models: ${data.available_models.length}`;
+            statusElement.title = `Server healthy. Models: ${data.available_models ? data.available_models.length : 'Unknown'}`;
         } else {
             statusElement.innerHTML = '<i class="fas fa-circle status-disconnected"></i> Disconnected';
             statusElement.title = 'Cannot connect to server';
         }
     }
     
-    async loadAvailableModels() {
-        try {
-            const response = await fetch(`${this.serverUrl}/api/models`);
-            const data = await response.json();
-            
-            if (data.success) {
-                this.populateModelSelect(data.models);
-            }
-        } catch (error) {
-            console.error('Failed to load models:', error);
-        }
-    }
+    // Graph info display is now handled by GraphStatisticsComponent
     
-    populateModelSelect(models) {
-        const select = document.getElementById('modelSelect');
-        select.innerHTML = '';
-        
-        if (models.length === 0) {
-            select.innerHTML = '<option value="">No models available</option>';
-            return;
-        }
-        
-        models.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model.name;
-            option.textContent = `${model.name} ${model.loaded ? '(Loaded)' : ''}`;
-            select.appendChild(option);
-        });
-    }
-    
-    async handleFileUpload(file) {
-        if (!file) return;
-        
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        try {
-            this.showProgress('Uploading file...');
-            
-            const response = await fetch(`${this.serverUrl}/api/upload_graph`, {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.currentGraph = data.graph_data;
-                this.displayGraphInfo(data.graph_info);
-                this.visualizeGraph(data.graph_data);
-                this.enableDismantleButton();
-            } else {
-                this.showError('Upload failed: ' + data.error);
-            }
-        } catch (error) {
-            this.showError('Upload failed: ' + error.message);
-        } finally {
-            this.hideProgress();
-        }
-    }
-    
-    handleManualInput(text) {
-        if (!text.trim()) {
-            this.clearGraph();
-            return;
-        }
-        
-        try {
-            // Parse as edge list
-            const lines = text.trim().split('\n');
-            const edges = [];
-            
-            for (const line of lines) {
-                const parts = line.trim().split(/\s+/);
-                if (parts.length >= 2) {
-                    edges.push([parseInt(parts[0]), parseInt(parts[1])]);
-                }
-            }
-            
-            if (edges.length > 0) {
-                const graphData = { edges: edges };
-                this.currentGraph = graphData;
-                
-                // Calculate basic info
-                const nodes = new Set();
-                edges.forEach(edge => {
-                    nodes.add(edge[0]);
-                    nodes.add(edge[1]);
-                });
-                
-                const graphInfo = {
-                    nodes: nodes.size,
-                    edges: edges.length,
-                    density: (2 * edges.length) / (nodes.size * (nodes.size - 1))
-                };
-                
-                this.displayGraphInfo(graphInfo);
-                this.visualizeGraph(graphData);
-                this.enableDismantleButton();
-            }
-        } catch (error) {
-            console.error('Error parsing manual input:', error);
-        }
-    }
-    
-    displayGraphInfo(info) {
-        const infoDiv = document.getElementById('graphInfo');
-        const statsDiv = document.getElementById('graphStats');
-        
-        statsDiv.innerHTML = `
-            <div class="row">
-                <div class="col-6"><strong>Nodes:</strong> ${info.nodes}</div>
-                <div class="col-6"><strong>Edges:</strong> ${info.edges}</div>
-                <div class="col-6"><strong>Density:</strong> ${info.density?.toFixed(3) || 'N/A'}</div>
-                <div class="col-6"><strong>Connected:</strong> ${info.is_connected ? 'Yes' : 'No'}</div>
-            </div>
-        `;
-        
-        infoDiv.classList.remove('d-none');
-    }
-    
-    enableDismantleButton() {
-        document.getElementById('dismantleBtn').disabled = false;
-    }
-    
-    async startDismantling() {
-        if (!this.currentGraph) {
-            this.showError('No graph loaded');
-            return;
-        }
-        
-        const model = document.getElementById('modelSelect').value;
-        const stepRatio = parseFloat(document.getElementById('stepRatio').value);
-        const maxIterations = parseInt(document.getElementById('maxIterations').value);
-        
-        const requestData = {
-            graph: this.currentGraph,
-            model: model,
-            step_ratio: stepRatio,
-            max_iterations: maxIterations
-        };
-        
-        try {
-            this.showProgress('Starting dismantling...');
-            this.updateServerStatus(false, null); // Show processing
-            document.getElementById('server-status').innerHTML = '<i class="fas fa-circle status-processing"></i> Processing';
-            
-            const response = await fetch(`${this.serverUrl}/api/dismantle`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.currentResults = data.result;
-                this.displayResults(data.result);
-                this.visualizeDismantling(data.result);
-            } else {
-                this.showError('Dismantling failed: ' + data.error);
-            }
-        } catch (error) {
-            this.showError('Dismantling failed: ' + error.message);
-        } finally {
-            this.hideProgress();
-            this.checkServerStatus(); // Restore server status
-        }
-    }
+    // Dismantling is now handled by ModelSelectionComponent
+    // This method is kept for handling the results display
     
     displayResults(results) {
         // Update summary stats
@@ -350,176 +229,51 @@ class FinderNDClient {
         detailsDiv.innerHTML = html;
     }
     
-    initializeGraphVisualization() {
-        const container = document.getElementById('graphViz');
-        const width = container.clientWidth;
-        const height = 400;
-        
-        this.graphViz = d3.select('#graphViz')
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-    }
-    
-    visualizeGraph(graphData) {
-        if (!this.graphViz) return;
-        
-        // Clear previous visualization
-        this.graphViz.selectAll('*').remove();
-        
-        // Prepare data
-        const nodes = [];
-        const links = [];
-        const nodeSet = new Set();
-        
-        // Extract nodes and edges
-        if (graphData.edges) {
-            graphData.edges.forEach(edge => {
-                nodeSet.add(edge[0]);
-                nodeSet.add(edge[1]);
-                links.push({ source: edge[0], target: edge[1] });
-            });
-        }
-        
-        nodeSet.forEach(nodeId => {
-            nodes.push({ id: nodeId });
-        });
-        
-        if (nodes.length === 0) return;
-        
-        const width = this.graphViz.attr('width');
-        const height = this.graphViz.attr('height');
-        
-        // Create force simulation
-        const simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(d => d.id).distance(50))
-            .force('charge', d3.forceManyBody().strength(-100))
-            .force('center', d3.forceCenter(width / 2, height / 2));
-        
-        // Add links
-        const link = this.graphViz.append('g')
-            .selectAll('line')
-            .data(links)
-            .enter().append('line')
-            .attr('class', 'link');
-        
-        // Add nodes
-        const node = this.graphViz.append('g')
-            .selectAll('circle')
-            .data(nodes)
-            .enter().append('circle')
-            .attr('class', 'node')
-            .attr('r', 5)
-            .call(d3.drag()
-                .on('start', dragstarted)
-                .on('drag', dragged)
-                .on('end', dragended));
-        
-        // Add labels for small graphs
-        if (nodes.length < 50) {
-            const labels = this.graphViz.append('g')
-                .selectAll('text')
-                .data(nodes)
-                .enter().append('text')
-                .text(d => d.id)
-                .attr('font-size', '10px')
-                .attr('text-anchor', 'middle')
-                .attr('dy', '.35em');
-            
-            simulation.on('tick', () => {
-                link
-                    .attr('x1', d => d.source.x)
-                    .attr('y1', d => d.source.y)
-                    .attr('x2', d => d.target.x)
-                    .attr('y2', d => d.target.y);
-                
-                node
-                    .attr('cx', d => d.x)
-                    .attr('cy', d => d.y);
-                
-                labels
-                    .attr('x', d => d.x)
-                    .attr('y', d => d.y);
-            });
-        } else {
-            simulation.on('tick', () => {
-                link
-                    .attr('x1', d => d.source.x)
-                    .attr('y1', d => d.source.y)
-                    .attr('x2', d => d.target.x)
-                    .attr('y2', d => d.target.y);
-                
-                node
-                    .attr('cx', d => d.x)
-                    .attr('cy', d => d.y);
-            });
-        }
-        
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
-        
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-        
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-    }
-    
-    visualizeDismantling(results) {
-        // Highlight removed nodes in the visualization
-        if (!this.graphViz) return;
-        
-        const removedNodes = new Set(results.solution);
-        
-        this.graphViz.selectAll('.node')
-            .classed('removed', d => removedNodes.has(d.id));
-    }
+    // Graph visualization is now handled by VisualizationComponent
     
     showProgress(message) {
-        document.getElementById('progressCard').style.display = 'block';
-        document.getElementById('progressText').textContent = message;
-        document.getElementById('progressBar').style.width = '100%';
+        const progressCard = document.getElementById('progressCard');
+        const progressText = document.getElementById('progressText');
+        const progressBar = document.getElementById('progressBar');
+        
+        if (progressCard) progressCard.style.display = 'block';
+        if (progressText) progressText.textContent = message;
+        if (progressBar) progressBar.style.width = '100%';
     }
     
     hideProgress() {
-        document.getElementById('progressCard').style.display = 'none';
+        const progressCard = document.getElementById('progressCard');
+        if (progressCard) progressCard.style.display = 'none';
+    }
+    
+    updateProgress(data) {
+        // Handle progress updates from dismantling process
+        if (data.message) {
+            this.showProgress(data.message);
+        }
+        
+        if (data.progress !== undefined) {
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                progressBar.style.width = `${data.progress}%`;
+            }
+        }
     }
     
     showError(message) {
-        alert('Error: ' + message); // Simple error display
+        alert('Error: ' + message); // Simple error display for now
     }
     
+    // Clear methods are now handled by individual components
     clearAll() {
-        this.currentGraph = null;
+        // Emit global clear event
+        this.componentManager.eventBus.emit('app:clear-all');
+        
+        // Clear results display
+        const resultsCard = document.getElementById('resultsCard');
+        if (resultsCard) resultsCard.style.display = 'none';
+        
         this.currentResults = null;
-        
-        document.getElementById('graphFile').value = '';
-        document.getElementById('graphInput').value = '';
-        document.getElementById('graphInfo').classList.add('d-none');
-        document.getElementById('resultsCard').style.display = 'none';
-        document.getElementById('dismantleBtn').disabled = true;
-        
-        if (this.graphViz) {
-            this.graphViz.selectAll('*').remove();
-        }
-    }
-    
-    clearGraph() {
-        this.currentGraph = null;
-        document.getElementById('graphInfo').classList.add('d-none');
-        document.getElementById('dismantleBtn').disabled = true;
-        
-        if (this.graphViz) {
-            this.graphViz.selectAll('*').remove();
-        }
     }
     
     exportSolution() {
@@ -555,5 +309,9 @@ class FinderNDClient {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize component manager first
+    const componentManager = ComponentManager.getInstance();
+    
+    // Initialize the main application
     new FinderNDClient();
 });

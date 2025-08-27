@@ -30,31 +30,117 @@
         <div class="row">
             <!-- Left Panel - Input -->
             <div class="col-md-4">
-                <div class="card">
+                <div class="card" id="graph-input">
                     <div class="card-header">
                         <h5><i class="fas fa-upload"></i> Graph Input</h5>
                     </div>
                     <div class="card-body">
-                        <!-- File Upload -->
-                        <div class="mb-3">
-                            <label for="graphFile" class="form-label">Upload Graph File</label>
-                            <input type="file" class="form-control" id="graphFile" accept=".txt,.json,.gml,.graphml">
-                            <div class="form-text">Supported formats: EdgeList (.txt), JSON, GML, GraphML</div>
+                        <!-- Upload Mode Tabs -->
+                        <ul class="nav nav-tabs mb-3" id="uploadModeTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-upload" 
+                                        type="button" role="tab" aria-controls="file-upload" aria-selected="true">
+                                    <i class="fas fa-file-upload"></i> Upload from file
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-input" 
+                                        type="button" role="tab" aria-controls="manual-input" aria-selected="false">
+                                    <i class="fas fa-edit"></i> Enter graph data
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="preset-tab" data-bs-toggle="tab" data-bs-target="#preset-generation" 
+                                        type="button" role="tab" aria-controls="preset-generation" aria-selected="false">
+                                    <i class="fas fa-magic"></i> Presets
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Tab Content -->
+                        <div class="tab-content" id="uploadModeContent">
+                            <!-- File Upload Tab -->
+                            <div class="tab-pane fade show active" id="file-upload" role="tabpanel" aria-labelledby="file-tab">
+                                <div class="mb-3">
+                                    <label for="graphFile" class="form-label">Upload Graph File</label>
+                                    <input type="file" class="form-control" id="graphFile" accept=".txt,.json,.gml,.graphml">
+                                    <div class="form-text">Supported formats: EdgeList (.txt), JSON, GML, GraphML</div>
+                                </div>
+                                
+                                <!-- Drag and Drop Area -->
+                                <div class="upload-drop-zone" id="uploadDropZone">
+                                    <div class="text-center p-4">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">Drag and drop your graph file here, or click to browse</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Manual Input Tab -->
+                            <div class="tab-pane fade" id="manual-input" role="tabpanel" aria-labelledby="manual-tab">
+                                <div class="mb-3">
+                                    <label for="graphInput" class="form-label">Enter Graph Data</label>
+                                    <textarea class="form-control" id="graphInput" rows="8" 
+                                        placeholder="Enter edge list (one edge per line):&#10;0 1&#10;1 2&#10;2 3&#10;..."></textarea>
+                                    <div class="form-text">
+                                        Format: Each line should contain two node IDs separated by space or tab
+                                    </div>
+                                </div>
+                                
+                                <!-- Real-time validation feedback -->
+                                <div id="manualInputFeedback" class="d-none">
+                                    <div class="alert alert-info">
+                                        <small>
+                                            <strong>Preview:</strong> 
+                                            <span id="edgeCount">0</span> edges, 
+                                            <span id="nodeCount">0</span> nodes detected
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preset Generation Tab -->
+                            <div class="tab-pane fade" id="preset-generation" role="tabpanel" aria-labelledby="preset-tab">
+                                <div class="mb-3">
+                                    <label for="presetType" class="form-label">Graph Type</label>
+                                    <select class="form-select" id="presetType">
+                                        <option value="">Select a graph type...</option>
+                                        <option value="barabasi_albert">Barabási-Albert (Scale-free)</option>
+                                        <option value="erdos_renyi">Erdős-Rényi (Random)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Parameter inputs will be dynamically generated -->
+                                <div id="presetParameters"></div>
+
+                                <div class="d-grid">
+                                    <button class="btn btn-primary" id="generatePresetBtn" disabled>
+                                        <i class="fas fa-magic"></i> Generate Graph
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Manual Input -->
-                        <div class="mb-3">
-                            <label for="graphInput" class="form-label">Or Enter Graph Data</label>
-                            <textarea class="form-control" id="graphInput" rows="6" 
-                                placeholder="Enter edge list (one edge per line):&#10;0 1&#10;1 2&#10;2 3&#10;..."></textarea>
-                        </div>
-
-                        <!-- Graph Info -->
-                        <div id="graphInfo" class="alert alert-info d-none">
+                        <!-- Graph Info (shared across all modes) -->
+                        <div id="graphInfo" class="alert alert-info d-none mt-3">
                             <h6>Graph Information:</h6>
                             <div id="graphStats"></div>
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- Graph Statistics Component -->
+                <div id="graph-statistics-container" class="mt-3">
+                    <!-- Graph Statistics Component will be rendered here -->
+                </div>
+
+                <!-- Model Selection Component -->
+                <div class="card mt-3" id="model-selection">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs"></i> Model Configuration</h5>
+                    </div>
+                    <div class="card-body">
                         <!-- Model Selection -->
                         <div class="mb-3">
                             <label for="modelSelect" class="form-label">Select Model</label>
@@ -107,7 +193,7 @@
             <!-- Right Panel - Results -->
             <div class="col-md-8">
                 <!-- Graph Visualization -->
-                <div class="card">
+                <div class="card" id="graph-visualization">
                     <div class="card-header">
                         <h5><i class="fas fa-project-diagram"></i> Graph Visualization</h5>
                     </div>
@@ -184,6 +270,15 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Component Architecture Scripts -->
+    <script src="js/core/BaseComponent.js"></script>
+    <script src="js/components/GraphUploadComponent.js"></script>
+    <script src="js/components/GraphStatisticsComponent.js"></script>
+    <script src="js/components/VisualizationComponent.js"></script>
+    <script src="js/components/ModelSelectionComponent.js"></script>
+    
+    <!-- Main Application -->
     <script src="app.js"></script>
 </body>
 </html>

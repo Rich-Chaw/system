@@ -161,7 +161,7 @@ class GraphProcessor:
         }
     
     def validate_graph(self, graph: nx.Graph) -> Dict[str, Any]:
-        """Validate graph and return statistics"""
+        """Validate graph and return comprehensive statistics"""
         
         if graph.number_of_nodes() == 0:
             raise ValueError("Graph has no nodes")
@@ -176,20 +176,133 @@ class GraphProcessor:
         
         # Check connectivity
         is_connected = nx.is_connected(graph)
+        components = list(nx.connected_components(graph))
         if not is_connected:
-            components = list(nx.connected_components(graph))
             logger.info(f"Graph has {len(components)} connected components")
+        
+        # Calculate basic statistics
+        num_nodes = graph.number_of_nodes()
+        num_edges = graph.number_of_edges()
+        density = nx.density(graph)
+        avg_degree = sum(dict(graph.degree()).values()) / num_nodes if num_nodes > 0 else 0
+        
+        # Calculate advanced statistics for connected graphs
+        clustering_coefficient = None
+        average_path_length = None
+        degree_distribution = None
+        
+        try:
+            # Clustering coefficient
+            clustering_coefficient = nx.average_clustering(graph)
+            
+            # Average path length (only for connected graphs)
+            if is_connected:
+                average_path_length = nx.average_shortest_path_length(graph)
+            
+            # Degree distribution
+            degrees = [d for n, d in graph.degree()]
+            degree_distribution = degrees
+            
+        except Exception as e:
+            logger.warning(f"Could not calculate advanced statistics: {e}")
         
         return {
             'valid': True,
-            'num_nodes': graph.number_of_nodes(),
-            'num_edges': graph.number_of_edges(),
+            'num_nodes': num_nodes,
+            'num_edges': num_edges,
             'is_connected': is_connected,
-            'density': nx.density(graph),
+            'density': density,
             'self_loops': len(self_loops),
-            'avg_degree': sum(dict(graph.degree()).values()) / graph.number_of_nodes()
+            'avg_degree': avg_degree,
+            'clustering_coefficient': clustering_coefficient,
+            'average_path_length': average_path_length,
+            'degree_distribution': degree_distribution,
+            'num_components': len(components),
+            'largest_component_size': len(max(components, key=len)) if components else 0
         }
     
+    def generate_preset_graph(self, graph_type: str, parameters: Dict[str, Any]) -> nx.Graph:
+        """Generate preset graphs using NetworkX models"""
+        
+        # Validate graph type
+        supported_types = ['barabasi_albert', 'erdos_renyi']
+        if graph_type not in supported_types:
+            raise ValueError(f"Unsupported graph type: {graph_type}. Supported types: {supported_types}")
+        
+        # Generate graph based on type
+        if graph_type == 'barabasi_albert':
+            return self._generate_barabasi_albert(parameters)
+        elif graph_type == 'erdos_renyi':
+            return self._generate_erdos_renyi(parameters)
+        else:
+            raise ValueError(f"Unknown graph type: {graph_type}")
+    
+    def _generate_barabasi_albert(self, parameters: Dict[str, Any]) -> nx.Graph:
+        """Generate Barabási-Albert graph"""
+        
+        # Validate parameters
+        if 'n' not in parameters:
+            raise ValueError("Parameter 'n' (number of nodes) is required for Barabási-Albert graph")
+        if 'm' not in parameters:
+            raise ValueError("Parameter 'm' (number of edges to attach) is required for Barabási-Albert graph")
+        
+        n = parameters['n']
+        m = parameters['m']
+        
+        # Validate parameter ranges
+        if not isinstance(n, int) or n <= 0:
+            raise ValueError("Parameter 'n' must be a positive integer")
+        if not isinstance(m, int) or m <= 0:
+            raise ValueError("Parameter 'm' must be a positive integer")
+        if m >= n:
+            raise ValueError("Parameter 'm' must be less than 'n'")
+        
+        # Additional validation for BA model
+        if n < 2:
+            raise ValueError("Barabási-Albert graph requires at least 2 nodes")
+        if m > n - 1:
+            raise ValueError("Parameter 'm' cannot exceed n-1")
+        
+        try:
+            # Generate the graph
+            graph = nx.barabasi_albert_graph(n, m)
+            logger.info(f"Generated Barabási-Albert graph: n={n}, m={m}, "
+                       f"nodes={graph.number_of_nodes()}, edges={graph.number_of_edges()}")
+            return graph
+        except Exception as e:
+            raise ValueError(f"Failed to generate Barabási-Albert graph: {str(e)}")
+    
+    def _generate_erdos_renyi(self, parameters: Dict[str, Any]) -> nx.Graph:
+        """Generate Erdős-Rényi graph"""
+        
+        # Validate parameters
+        if 'n' not in parameters:
+            raise ValueError("Parameter 'n' (number of nodes) is required for Erdős-Rényi graph")
+        if 'p' not in parameters:
+            raise ValueError("Parameter 'p' (edge probability) is required for Erdős-Rényi graph")
+        
+        n = parameters['n']
+        p = parameters['p']
+        
+        # Validate parameter ranges
+        if not isinstance(n, int) or n <= 0:
+            raise ValueError("Parameter 'n' must be a positive integer")
+        if not isinstance(p, (int, float)) or p < 0 or p > 1:
+            raise ValueError("Parameter 'p' must be a number between 0 and 1")
+        
+        # Additional validation for ER model
+        if n < 1:
+            raise ValueError("Erdős-Rényi graph requires at least 1 node")
+        
+        try:
+            # Generate the graph
+            graph = nx.erdos_renyi_graph(n, p)
+            logger.info(f"Generated Erdős-Rényi graph: n={n}, p={p}, "
+                       f"nodes={graph.number_of_nodes()}, edges={graph.number_of_edges()}")
+            return graph
+        except Exception as e:
+            raise ValueError(f"Failed to generate Erdős-Rényi graph: {str(e)}")
+
     def preprocess_for_model(self, graph: nx.Graph) -> nx.Graph:
         """Preprocess graph for model input"""
         

@@ -8,6 +8,7 @@ import numpy as np
 import time
 import logging
 from typing import Dict, List, Any, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +242,160 @@ class DismantlingEngine:
         
         return solution
     
+    def dismantle_multi_model(self, graph: nx.Graph, model_configs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Execute dismantling with multiple models in parallel
+        
+        Args:
+            graph: NetworkX graph to dismantle
+            model_configs: List of model configurations
+            
+        Returns:
+            Dictionary containing results for each model
+        """
+        
+        results = {}
+        
+        # Validate model configurations
+        for config in model_configs:
+            if 'id' not in config:
+                raise ValueError("Model configuration must include 'id'")
+            if 'name' not in config:
+                config['name'] = config['id']  # Use id as name if not provided
+        
+        logger.info(f"Starting multi-model dismantling with {len(model_configs)} models")
+        
+        # Execute each model (sequential for now, can be parallelized later)
+        for config in model_configs:
+            model_id = config['id']
+            model_name = config.get('name', model_id)
+            step_ratio = config.get('step_ratio', 0.0025)
+            max_iterations = config.get('max_iterations', 1000)
+            
+            try:
+                logger.info(f"Executing model {model_id} ({model_name})")
+                
+                # Execute dismantling for this model
+                result = self.dismantle(
+                    graph=graph,
+                    model_name=model_name,
+                    step_ratio=step_ratio,
+                    max_iterations=max_iterations
+                )
+                
+                # Add step-by-step data for visualization
+                step_by_step = self._generate_step_by_step_data(graph, result['solution'])
+                result['step_by_step'] = step_by_step
+                
+                results[model_id] = result
+                
+                logger.info(f"Model {model_id} completed: {len(result['solution'])} nodes removed")
+                
+            except Exception as e:
+                logger.error(f"Model {model_id} failed: {str(e)}")
+                results[model_id] = {
+                    'success': False,
+                    'error': str(e),
+                    'model_id': model_id,
+                    'model_name': model_name
+                }
+        
+        # Add comparative analysis
+        successful_results = {k: v for k, v in results.items() if v.get('success', True)}
+        if len(successful_results) > 1:
+            comparison = self._compare_model_results(successful_results)
+            results['comparison'] = comparison
+        
+        logger.info(f"Multi-model dismantling completed: {len(successful_results)}/{len(model_configs)} models successful")
+        
+        return results
+    
+    def _generate_step_by_step_data(self, original_graph: nx.Graph, solution: List[int]) -> List[Dict[str, Any]]:
+        """Generate step-by-step dismantling data for visualization"""
+        
+        g = original_graph.copy()
+        step_data = []
+        
+        # Initial state
+        initial_cc = len(max(nx.connected_components(g), key=len)) if g.number_of_nodes() > 0 else 0
+        
+        step_data.append({
+            'step': 0,
+            'node_removed': None,
+            'remaining_nodes': list(g.nodes()),
+            'remaining_edges': list(g.edges()),
+            'largest_cc_size': initial_cc,
+            'num_components': nx.number_connected_components(g)
+        })
+        
+        # Step through solution
+        for i, node in enumerate(solution):
+            if node in g:
+                g.remove_node(node)
+                
+                largest_cc_size = len(max(nx.connected_components(g), key=len)) if g.number_of_nodes() > 0 else 0
+                
+                step_data.append({
+                    'step': i + 1,
+                    'node_removed': node,
+                    'remaining_nodes': list(g.nodes()),
+                    'remaining_edges': list(g.edges()),
+                    'largest_cc_size': largest_cc_size,
+                    'num_components': nx.number_connected_components(g)
+                })
+        
+        return step_data
+    
+    def _compare_model_results(self, results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """Compare results from multiple models"""
+        
+        comparison = {
+            'best_robustness': None,
+            'best_removal_efficiency': None,
+            'best_execution_time': None,
+            'summary': {}
+        }
+        
+        # Find best performers
+        best_robustness_score = float('inf')
+        best_removal_ratio = float('inf')
+        best_time = float('inf')
+        
+        for model_id, result in results.items():
+            if not result.get('success', True):
+                continue
+                
+            metrics = result.get('metrics', {})
+            robustness = metrics.get('robustness', float('inf'))
+            removal_ratio = metrics.get('removal_ratio', float('inf'))
+            execution_time = result.get('execution_time', float('inf'))
+            
+            # Track best robustness (lower is better)
+            if robustness < best_robustness_score:
+                best_robustness_score = robustness
+                comparison['best_robustness'] = model_id
+            
+            # Track best removal efficiency (lower ratio is better)
+            if removal_ratio < best_removal_ratio:
+                best_removal_ratio = removal_ratio
+                comparison['best_removal_efficiency'] = model_id
+            
+            # Track best execution time (lower is better)
+            if execution_time < best_time:
+                best_time = execution_time
+                comparison['best_execution_time'] = model_id
+            
+            # Store summary for this model
+            comparison['summary'][model_id] = {
+                'robustness': robustness,
+                'removal_ratio': removal_ratio,
+                'execution_time': execution_time,
+                'nodes_removed': metrics.get('nodes_removed', 0),
+                'final_largest_cc': metrics.get('final_largest_cc', 0)
+            }
+        
+        return comparison
+
     def _random_attack(self, graph: nx.Graph, num_nodes: int) -> List[int]:
         """Implement random attack baseline"""
         nodes = list(graph.nodes())

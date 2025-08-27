@@ -149,20 +149,115 @@ def upload_graph():
             except OSError:
                 pass  # File might already be deleted
         
+        # Calculate comprehensive graph statistics
+        graph_info = graph_processor.validate_graph(graph)
+        
         # Return graph info
         return jsonify({
             'success': True,
-            'graph_info': {
-                'nodes': graph.number_of_nodes(),
-                'edges': graph.number_of_edges(),
-                'is_connected': nx.is_connected(graph),
-                'density': nx.density(graph)
-            },
+            'graph_info': graph_info,
             'graph_data': graph_processor.graph_to_dict(graph)
         })
         
     except Exception as e:
         logger.error(f"Error uploading graph: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/generate_preset_graph', methods=['POST'])
+def generate_preset_graph():
+    """Generate preset graphs using NetworkX models"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'graph_type' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'graph_type is required'
+            }), 400
+        
+        if 'parameters' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'parameters are required'
+            }), 400
+        
+        graph_type = data['graph_type']
+        parameters = data['parameters']
+        
+        # Generate preset graph
+        graph = graph_processor.generate_preset_graph(graph_type, parameters)
+        
+        # Convert to dictionary format
+        graph_data = graph_processor.graph_to_dict(graph)
+        
+        # Calculate additional statistics
+        graph_info = graph_processor.validate_graph(graph)
+        
+        return jsonify({
+            'success': True,
+            'graph_data': graph_data,
+            'graph_info': graph_info
+        })
+        
+    except ValueError as e:
+        logger.error(f"Parameter validation error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+    except Exception as e:
+        logger.error(f"Error generating preset graph: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/dismantle_multi', methods=['POST'])
+def dismantle_multi_model():
+    """Execute dismantling with multiple models"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'graph' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Graph data is required'
+            }), 400
+        
+        if 'models' not in data or not data['models']:
+            return jsonify({
+                'success': False,
+                'error': 'At least one model configuration is required'
+            }), 400
+        
+        graph_data = data['graph']
+        model_configs = data['models']
+        
+        # Parse graph
+        graph = graph_processor.parse_graph(graph_data)
+        
+        # Validate graph
+        if graph.number_of_nodes() == 0:
+            return jsonify({
+                'success': False,
+                'error': 'Empty graph provided'
+            }), 400
+        
+        # Execute multi-model dismantling
+        results = dismantling_engine.dismantle_multi_model(graph, model_configs)
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in multi-model dismantling: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
