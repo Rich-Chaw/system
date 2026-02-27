@@ -116,8 +116,7 @@ class ModelManager:
             },
             'gnn_model': 'graphSage',
             'model_type': 'standard',  # standard, SOTA, moe, advance
-            'save_model_dir': './AAA-NetDQN/code/FINDER/models',
-            'IsSOTA': 'SOTA' in dir_name
+            'is_sota': 'SOTA' in dir_name
         }
         
         # Try to load config.json if it exists
@@ -169,6 +168,14 @@ class ModelManager:
                     except ValueError:
                         pass
             
+            # Determine model type
+            if 'SOTA' in dir_name:
+                model_config['model_type'] = 'SOTA'
+            elif 'moe' in dir_name.lower():
+                model_config['model_type'] = 'moe'
+            elif 'advance' in dir_name.lower():
+                model_config['model_type'] = 'advance'
+                
         except (ValueError, IndexError) as e:
             logger.warning(f"Error parsing config for {dir_name}: {e}")
             
@@ -209,8 +216,8 @@ class ModelManager:
             
             g_params = config['g_params']
             g_type = config['g_type']
-            save_model_dir = config['save_model_dir']
-            is_sota = config.get('IsSOTA', False)
+            save_model_dir = config['path']
+            is_sota = config.get('is_sota', False)
 
             logger.info(f'Loading model: {model_name}')
             logger.info(f'  g_type={g_type}, g_params={g_params}')
@@ -227,7 +234,7 @@ class ModelManager:
                 with contextlib.redirect_stdout(captured_output), contextlib.redirect_stderr(captured_output):
                     # Initialize GraphDQN
                     dqn = GraphDQN(
-                        g_type=g_type,
+                        g_type,
                         g_params=g_params,
                         gnn_model=gnn_model,
                         save_model_dir=save_model_dir

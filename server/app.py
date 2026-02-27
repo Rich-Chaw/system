@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize components
-model_manager = ModelManager('./AAA-NetDQN/code/models')
+model_manager = ModelManager()
 graph_processor = GraphProcessor()
 dismantling_engine = DismantlingEngine(model_manager)
 
