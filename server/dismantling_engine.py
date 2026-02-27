@@ -57,6 +57,9 @@ class DismantlingEngine:
             
             execution_time = time.time() - start_time
             
+            # Generate step-by-step data for visualization
+            step_by_step_data = self._generate_step_by_step_data(original_graph, solution)
+            
             result = {
                 'solution': solution,
                 'metrics': final_metrics,
@@ -66,11 +69,12 @@ class DismantlingEngine:
                     'nodes': original_graph.number_of_nodes(),
                     'edges': original_graph.number_of_edges()
                 },
-                'model_used': model_name or 'default'
+                'model_used': model_name or 'default',
+                'stepByStep': step_by_step_data  # Add step-by-step data for frontend
             }
             
             logger.info(f"Dismantling completed in {execution_time:.2f}s, "
-                       f"removed {len(solution)} nodes")
+                       f"removed {len(solution)} nodes, generated {len(step_by_step_data)} steps")
             
             return result
             
@@ -285,7 +289,7 @@ class DismantlingEngine:
                 
                 # Add step-by-step data for visualization
                 step_by_step = self._generate_step_by_step_data(graph, result['solution'])
-                result['step_by_step'] = step_by_step
+                result['stepByStep'] = step_by_step  # Use camelCase for frontend compatibility
                 
                 results[model_id] = result
                 

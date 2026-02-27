@@ -41,6 +41,12 @@ class FinderNDClient {
             responsive: true
         });
 
+        // Initialize Progress Control Component
+        this.components.progressControl = new ProgressControlComponent('progress-control', {
+            autoPlaySpeed: 500,
+            showStepInfo: true
+        });
+
         // Initialize Model Selection Component
         this.components.modelSelection = new ModelSelectionComponent('model-selection', {
             serverUrl: this.serverUrl
@@ -56,6 +62,7 @@ class FinderNDClient {
         this.componentManager.registerComponent('graph-statistics', this.components.graphStatistics);
         this.componentManager.registerComponent('graph-visualization', this.components.visualization);
         this.componentManager.registerComponent('multi-view-visualization', this.components.multiViewVisualization);
+        this.componentManager.registerComponent('progress-control', this.components.progressControl);
         this.componentManager.registerComponent('model-selection', this.components.modelSelection);
 
         console.log('All components registered. Event bus status:', this.componentManager.eventBus.getEvents());
@@ -154,21 +161,82 @@ class FinderNDClient {
     // This method is kept for handling the results display
 
     displayResults(results) {
+        console.log('displayResults called with:', results);
+        
+        // Handle multi-model results (array format)
+        if (!results) {
+            console.warn('No results to display - results is null/undefined');
+            return;
+        }
+        
+        if (!Array.isArray(results)) {
+            console.warn('Results is not an array:', typeof results);
+            return;
+        }
+        
+        if (results.length === 0) {
+            console.warn('No results to display - empty array');
+            return;
+        }
+        
+        console.log('First result item:', results[0]);
+        
+        // For now, display the first model's results in the summary card
+        // In the future, this could show aggregated stats across all models
+        const firstResultItem = results[0];
+        
+        if (!firstResultItem) {
+            console.error('First result item is undefined');
+            return;
+        }
+        
+        const firstResult = firstResultItem.result;
+        
+        if (!firstResult) {
+            console.error('Result property is missing from first item:', firstResultItem);
+            return;
+        }
+        
+        if (!firstResult.solution) {
+            console.error('Solution is missing from result:', firstResult);
+            return;
+        }
+        
+        if (!firstResult.metrics) {
+            console.error('Metrics is missing from result:', firstResult);
+            return;
+        }
+        
+        console.log('Displaying results for first model');
+        
         // Update summary stats
-        document.getElementById('nodesRemoved').textContent = results.solution.length;
-        document.getElementById('executionTime').textContent = results.execution_time.toFixed(2);
-        document.getElementById('robustness').textContent = results.metrics.robustness.toFixed(3);
-        document.getElementById('finalCC').textContent = results.metrics.final_largest_cc;
+        const nodesRemovedEl = document.getElementById('nodesRemoved');
+        const executionTimeEl = document.getElementById('executionTime');
+        const robustnessEl = document.getElementById('robustness');
+        const finalCCEl = document.getElementById('finalCC');
+        
+        if (nodesRemovedEl) nodesRemovedEl.textContent = firstResult.solution.length;
+        if (executionTimeEl) executionTimeEl.textContent = firstResult.execution_time.toFixed(2);
+        if (robustnessEl) robustnessEl.textContent = firstResult.metrics.robustness.toFixed(3);
+        if (finalCCEl) finalCCEl.textContent = firstResult.metrics.final_largest_cc;
 
         // Show results card
-        document.getElementById('resultsCard').style.display = 'block';
+        const resultsCard = document.getElementById('resultsCard');
+        if (resultsCard) resultsCard.style.display = 'block';
 
         // Create charts
-        this.createDismantlingChart(results.metrics.largest_cc_evolution);
-        this.createMetricsChart(results.metrics);
+        if (firstResult.metrics.largest_cc_evolution) {
+            this.createDismantlingChart(firstResult.metrics.largest_cc_evolution);
+        }
+        
+        if (firstResult.metrics) {
+            this.createMetricsChart(firstResult.metrics);
+        }
 
         // Display solution details
-        this.displaySolutionDetails(results.solution, results.metrics.removal_sequence);
+        if (firstResult.solution && firstResult.metrics.removal_sequence) {
+            this.displaySolutionDetails(firstResult.solution, firstResult.metrics.removal_sequence);
+        }
     }
 
     createDismantlingChart(ccEvolution) {

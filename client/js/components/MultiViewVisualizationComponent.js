@@ -362,23 +362,62 @@ class MultiViewVisualizationComponent extends BaseComponent {
      * Handle dismantling results from multiple models
      */
     handleDismantlingResults(results) {
-        // Results should be an object with modelId as keys
-        if (!results || typeof results !== 'object') return;
+        console.log('=== handleDismantlingResults called ===');
+        console.log('Results type:', Array.isArray(results) ? 'array' : typeof results);
+        console.log('Results:', results);
+        
+        // Results can be either an array or an object
+        if (!results) return;
+        
+        // Convert array format to object format if needed
+        let resultsObj = {};
+        if (Array.isArray(results)) {
+            console.log('Converting array format to object format');
+            // Array format: [{modelConfig: {...}, result: {...}}, ...]
+            results.forEach(item => {
+                if (item.modelConfig && item.result) {
+                    console.log(`  Model ${item.modelConfig.id}: has stepByStep?`, !!item.result.stepByStep);
+                    resultsObj[item.modelConfig.id] = item.result;
+                }
+            });
+        } else if (typeof results === 'object') {
+            // Object format: {modelId: result, ...}
+            resultsObj = results;
+        } else {
+            console.error('Invalid results format:', results);
+            return;
+        }
+        
+        console.log('Processing dismantling results for models:', Object.keys(resultsObj));
         
         // Store step data for progress control and synchronization
         this.sharedState.stepData.clear();
         this.sharedState.maxSteps = 0;
         
         // Process results for each model
-        Object.entries(results).forEach(([modelId, modelResults]) => {
+        Object.entries(resultsObj).forEach(([modelIdStr, modelResults]) => {
+            // Convert string key back to number to match view IDs
+            const modelId = parseInt(modelIdStr);
             const view = this.views.get(modelId);
-            if (!view) return;
+            if (!view) {
+                console.warn(`No view found for model ${modelId} (string: ${modelIdStr})`);
+                console.log('Available view IDs:', Array.from(this.views.keys()));
+                return;
+            }
+            
+            console.log(`Processing model ${modelId}:`, {
+                hasStepByStep: !!modelResults.stepByStep,
+                stepCount: modelResults.stepByStep ? modelResults.stepByStep.length : 0,
+                hasSolution: !!modelResults.solution,
+                solutionLength: modelResults.solution ? modelResults.solution.length : 0
+            });
             
             // Update view status
             this.updateViewStatus(modelId, 'completed');
             
             // Store step-by-step data for synchronization
             if (modelResults.stepByStep) {
+                console.log(`Model ${modelId} has ${modelResults.stepByStep.length} steps`);
                 modelResults.stepByStep.forEach((stepData, stepIndex) => {
                     if (!this.sharedState.stepData.has(stepIndex)) {
                         this.sharedState.stepData.set(stepIndex, new Map());
@@ -391,13 +430,25 @@ class MultiViewVisualizationComponent extends BaseComponent {
                 
                 this.sharedState.maxSteps = Math.max(
                     this.sharedState.maxSteps, 
-                    modelResults.stepByStep.length
+                    modelResults.stepByStep.length - 1  // -1 because step 0 is initial state
                 );
+            } else {
+                console.warn(`Model ${modelId} has no stepByStep data`);
             }
             
-            // Initialize view with final state
+            // Initialize view with dismantling results
+            console.log(`Calling setDismantlingResults for model ${modelId}`);
             view.visualization.setDismantlingResults(modelResults);
+            
+            // Update view stats to show initial state (step 0)
+            if (modelResults.stepByStep && modelResults.stepByStep.length > 0) {
+                const initialStep = modelResults.stepByStep[0];
+                console.log(`Updating stats for model ${modelId} with initial step:`, initialStep);
+                this.updateViewStatsFromStep(modelId, initialStep);
+            }
         });
+        
+        console.log(`Initialized ${this.sharedState.stepData.size} steps, max steps: ${this.sharedState.maxSteps}`);
         
         // Initialize synchronized state
         this.initializeSynchronizedState();
@@ -405,21 +456,76 @@ class MultiViewVisualizationComponent extends BaseComponent {
         // Enable progress control
         this.emit('progress:enabled', { 
             maxSteps: this.sharedState.maxSteps,
-            models: Object.keys(results)
+            models: Object.keys(resultsObj)
         });
+    }
+    
+    /**
+     * Update view statistics from step data
+     */
+    updateViewStatsFromStep(modelId, stepData) {
+        const view = this.views.get(modelId);
+        if (!view) {
+            console.warn(`updateViewStatsFromStep: No view found for model ${modelId}`);
+            return;
+        }
+        
+        const nodeCountEl = view.container.querySelector('.node-count');
+        const edgeCountEl = view.container.querySelector('.edge-count');
+        
+        if (!stepData) {
+            console.warn(`updateViewStatsFromStep: No step data for model ${modelId}`);
+            return;
+        }
+        
+        // Handle both camelCase and snake_case
+        const remainingNodes = stepData.remainingNodes || stepData.remaining_nodes || [];
+        const remainingEdges = stepData.remainingEdges || stepData.remaining_edges || [];
+        
+        const nodeCount = Array.isArray(remainingNodes) ? remainingNodes.length : 0;
+        const edgeCount = Array.isArray(remainingEdges) ? remainingEdges.length : 0;
+        
+        console.log(`Updating stats for model ${modelId}: ${nodeCount} nodes, ${edgeCount} edges`);
+        
+        if (nodeCountEl) {
+            nodeCountEl.textContent = nodeCount;
+        }
+        if (edgeCountEl) {
+            edgeCountEl.textContent = edgeCount;
+        }
     }
     
     /**
      * Normalize step data for consistent synchronization across models
      */
     normalizeStepData(stepData, modelResults) {
+        // Handle both camelCase and snake_case formats
+        const step = stepData.step || 0;
+        const nodeRemoved = stepData.nodeRemoved || stepData.node_removed || null;
+        const remainingNodes = stepData.remainingNodes || stepData.remaining_nodes || [];
+        const remainingEdges = stepData.remainingEdges || stepData.remaining_edges || [];
+        const largestCCSize = stepData.largestCCSize || stepData.largest_cc_size || 0;
+        const numComponents = stepData.numComponents || stepData.num_components || 0;
+        
+        // Calculate removed nodes up to this step
+        let removedNodes = [];
+        if (modelResults.solution && step > 0) {
+            removedNodes = modelResults.solution.slice(0, step);
+        }
+        
         return {
-            step: stepData.step || 0,
-            nodeRemoved: stepData.nodeRemoved || stepData.node_removed,
-            removedNodes: stepData.removedNodes || this.extractRemovedNodes(stepData, modelResults),
-            remainingNodes: stepData.remainingNodes || stepData.remaining_nodes,
-            largestCCSize: stepData.largestCCSize || stepData.largest_cc_size,
-            networkState: stepData.networkState || this.extractNetworkState(stepData),
+            step: step,
+            nodeRemoved: nodeRemoved,
+            removedNodes: removedNodes,
+            remainingNodes: remainingNodes,
+            remainingEdges: remainingEdges,
+            largestCCSize: largestCCSize,
+            numComponents: numComponents,
+            networkState: {
+                activeNodes: remainingNodes,
+                removedNodes: removedNodes,
+                largestCCSize: largestCCSize
+            },
             timestamp: Date.now()
         };
     }
@@ -519,6 +625,9 @@ class MultiViewVisualizationComponent extends BaseComponent {
             
             // Perform the update
             view.visualization.updateToStep(step, stepData);
+            
+            // Update view statistics
+            this.updateViewStatsFromStep(view.model.id, stepData);
             
             // Remove sync indicator after a brief delay
             setTimeout(() => {
@@ -1144,10 +1253,13 @@ class SingleVisualizationView {
     setDismantlingResults(results) {
         this.dismantlingResults = results;
         
-        // Initialize to final state by default
+        // Initialize to step 0 (initial state) by default, not final state
+        // This allows users to see the progression from the beginning
         if (results.stepByStep && results.stepByStep.length > 0) {
-            const finalStep = results.stepByStep.length - 1;
-            this.updateToStep(finalStep, results.stepByStep[finalStep]);
+            console.log(`Setting dismantling results with ${results.stepByStep.length} steps`);
+            this.updateToStep(0, results.stepByStep[0]);
+        } else {
+            console.warn('No stepByStep data in dismantling results');
         }
     }
     
