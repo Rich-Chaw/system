@@ -14,7 +14,7 @@ import time
 
 class ClientHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        client_dir = os.path.join(os.path.dirname(__file__), 'client')
+        client_dir = os.path.join(os.path.dirname(__file__), '..', 'client')
         super().__init__(*args, directory=client_dir, **kwargs)
     
     def end_headers(self):

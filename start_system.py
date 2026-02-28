@@ -23,7 +23,7 @@ class SystemLauncher:
         print(f"Starting FINDER_ND server on {host}:{port}...")
         
         cmd = [
-            sys.executable, './system/run_server.py',
+            sys.executable, os.path.join(os.path.dirname(__file__), 'run_server.py'),
             '--config', config,
             '--host', host,
             '--port', str(port)
@@ -69,7 +69,7 @@ class SystemLauncher:
         print(f"Starting FINDER_ND client on {host}:{port}...")
         
         cmd = [
-            sys.executable, './system/run_client.py',
+            sys.executable, os.path.join(os.path.dirname(__file__), 'run_client.py'),
             '--host', host,
             '--port', str(port)
         ]
@@ -143,26 +143,28 @@ class SystemLauncher:
         """Check if all prerequisites are met"""
         print("Checking prerequisites...")
         
+        script_dir = os.path.dirname(__file__)
+        
         # Check if server files exist
-        if not os.path.exists('./system/run_server.py'):
+        if not os.path.exists(os.path.join(script_dir, 'run_server.py')):
             print("✗ Server launcher not found")
             return False
         
-        if not os.path.exists('./system/server/app.py'):
+        if not os.path.exists(os.path.join(script_dir, 'server', 'app.py')):
             print("✗ Server application not found")
             return False
         
         # Check if client files exist
-        if not os.path.exists('./system/run_client.py'):
+        if not os.path.exists(os.path.join(script_dir, 'run_client.py')):
             print("✗ Client launcher not found")
             return False
         
-        if not os.path.exists('./system/client/index.html'):
+        if not os.path.exists(os.path.join(script_dir, 'client', 'index.html')):
             print("✗ Client application not found")
             return False
         
         # Check if models directory exists
-        models_dir = './AAA-NetDQN/code/FINDER/models'
+        models_dir = os.path.join(script_dir,'..', 'AAA-NetDQN', 'code', 'FINDER', 'models')
         if not os.path.exists(models_dir):
             print(f"⚠ Models directory not found: {models_dir}")
             print("  Please ensure your trained models are available")

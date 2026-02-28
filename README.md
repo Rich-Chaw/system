@@ -1,100 +1,226 @@
-# FINDER_ND 网络拆解系统
+# FINDER_ND Network Dismantling System
 
-基于深度强化学习模型的复杂网络分析和拆解Web系统。
+A modern web-based system for network dismantling using deep reinforcement learning models (GraphDQN). Features a Flask backend and component-based frontend architecture.
 
-## 概述
+## 🏗️ Architecture
 
-FINDER_ND系统提供了一个直观的界面，用于上传图形、分析其属性，并使用各种AI模型执行网络拆解。该系统由Flask后端服务器和现代Web前端组成。
-
-## 功能特性
-
-- **图形上传**: 支持多种图形格式 (EdgeList, JSON, GML, GraphML)
-- **手动图形输入**: 直接以边列表形式输入图形数据
-- **模型选择**: 从可用的训练模型中选择
-- **实时可视化**: 使用D3.js的交互式图形可视化
-- **拆解分析**: 包含指标和进度跟踪的综合分析
-- **结果导出**: 导出解决方案和详细结果
-
-## Architecture
-
+### Server (Backend)
 ```
-system/
-├── client/                 # Frontend web application
-│   ├── index.html         # Main HTML interface
-│   ├── app.js            # JavaScript application logic
-│   └── styles.css        # CSS styling
-├── server/                # Backend Flask application
-│   ├── app.py            # Main Flask application
-│   ├── config.py         # Configuration settings
-│   ├── dismantling_engine.py  # Core dismantling logic
-│   ├── graph_processor.py     # Graph processing utilities
-│   └── model_manager.py       # Model loading and management
-├── run_client.py          # Client server launcher
-├── run_server.py          # Backend server launcher
-└── start_system.py        # System launcher (starts both)
+server/
+├── core/               # Core functionality
+│   ├── config.py      # Configuration management
+│   └── exceptions.py  # Custom exceptions
+├── services/          # Business logic
+│   ├── model_manager.py
+│   ├── graph_processor.py
+│   └── dismantling_engine.py
+└── app.py            # Flask application
 ```
 
-## Quick Start
+### Client (Frontend)
+```
+client/
+├── js/
+│   ├── core/          # Core architecture
+│   │   ├── BaseComponent.js
+│   │   ├── EventBus.js
+│   │   └── ComponentManager.js
+│   ├── components/    # UI components
+│   │   ├── GraphUploadComponent.js
+│   │   ├── GraphStatisticsComponent.js
+│   │   ├── ModelSelectionComponent.js
+│   │   ├── SimpleVisualizationComponent.js
+│   │   ├── MultiViewVisualizationComponent.js
+│   │   └── ProgressControlComponent.js
+│   ├── utils/         # Utilities
+│   │   └── api.js     # API client
+│   ├── config.js      # Configuration
+│   └── app.js         # Main application
+├── index.html
+└── styles.css
+```
 
-1. **Start the complete system:**
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.7+
+- NetworkX, Flask, Flask-CORS
+- Trained GraphDQN models in `AAA-NetDQN/code/FINDER/models/`
+
+### Installation
+
+1. **Install dependencies:**
+   ```bash
+   cd system/server
+   pip install -r requirements.txt
+   ```
+
+2. **Start the system:**
    ```bash
    python system/start_system.py
    ```
 
-2. **Access the web interface:**
-   - Open your browser to `http://localhost:8080`
-   - The backend API runs on `http://localhost:5000`
+   This will start both the backend server (port 5000) and frontend client (port 8080).
 
-3. **Upload a graph:**
-   - Use the file upload for supported formats
-   - Or enter edge list data manually
-   - View graph statistics and visualization
+### Manual Start
 
-4. **Run dismantling analysis:**
-   - Select a model and configure parameters
-   - Click "Start Dismantling" to begin analysis
-   - View results, charts, and export data
-
-## API Endpoints
-
-- `GET /api/health` - Server health check
-- `GET /api/models` - List available models
-- `POST /api/upload_graph` - Upload graph file
-- `POST /api/dismantle` - Start dismantling analysis
-
-## Configuration
-
-The system supports development and production configurations:
-
-- **Development**: Debug mode enabled, verbose logging
-- **Production**: Optimized for deployment, minimal logging
-
-## Requirements
-
-- Python 3.7+
-- Flask and dependencies (see `server/requirements.txt`)
-- Modern web browser with JavaScript enabled
-- Trained FINDER_ND models (place in `../AAA-NetDQN/code/models/`)
-
-## Development
-
-To run components separately:
+Start components separately:
 
 ```bash
-# Backend only
-python system/run_server.py --config development
+# Backend server
+cd system
+python run_server.py --config development
 
-# Frontend only  
-python system/run_client.py --port 8080
+# Frontend client (in another terminal)
+cd system
+python run_client.py --port 8080
 ```
 
-## Troubleshooting
+## 📋 Features
 
-- Ensure all dependencies are installed
-- Check that model files are available in the expected directory
-- Verify ports 5000 and 8080 are available
-- Check browser console for JavaScript errors
+### Graph Input
+- **File Upload**: EdgeList, JSON, GML, GraphML formats
+- **Manual Input**: Direct edge list entry
+- **Preset Generation**: Barabási-Albert, Erdős-Rényi graphs
 
-## License
+### Visualization
+- Interactive D3.js-based graph visualization
+- Multi-model comparison views
+- Step-by-step dismantling playback
+- Real-time statistics and metrics
+
+### Model Execution
+- Single or multiple model execution
+- Configurable parameters (step ratio, iterations)
+- Parallel model comparison
+- Performance metrics and analysis
+
+## 🔧 Configuration
+
+### Server Configuration
+Edit `server/core/config.py`:
+
+```python
+class Config:
+    HOST = '0.0.0.0'
+    PORT = 5000
+    DEBUG = True
+    MODELS_DIR = './AAA-NetDQN/code/FINDER/models'
+    DEFAULT_STEP_RATIO = 0.0025
+    MAX_GRAPH_SIZE = 10000
+```
+
+### Client Configuration
+Edit `client/js/config.js`:
+
+```javascript
+const Config = {
+    API_BASE_URL: 'http://localhost:5000/api',
+    REQUEST_TIMEOUT: 300000,
+    MODEL: {
+        DEFAULT_STEP_RATIO: 0.0025,
+        DEFAULT_MAX_ITERATIONS: 1000
+    }
+};
+```
+
+## 📡 API Endpoints
+
+### Health Check
+```
+GET /api/health
+```
+
+### Models
+```
+GET /api/models
+```
+
+### Graph Operations
+```
+POST /api/upload_graph
+POST /api/generate_preset_graph
+```
+
+### Dismantling
+```
+POST /api/dismantle
+POST /api/dismantle_multi_model
+POST /api/evaluate_solution
+```
+
+## 🧪 Testing
+
+Run system tests:
+```bash
+cd system/scripts
+python test_system.py
+```
+
+## 📁 Project Structure
+
+```
+system/
+├── server/            # Backend application
+├── client/            # Frontend application
+├── scripts/           # Launcher and utility scripts
+├── .gitignore        # Git ignore rules
+└── README.md         # This file
+```
+
+## 🔄 Component Architecture
+
+The frontend uses a component-based architecture:
+
+1. **BaseComponent**: Base class for all components
+2. **EventBus**: Inter-component communication
+3. **ComponentManager**: Lifecycle management
+4. **Specialized Components**: Graph upload, visualization, model selection, etc.
+
+## 🐛 Troubleshooting
+
+### Server won't start
+- Check if port 5000 is available
+- Verify Python dependencies are installed
+- Check models directory exists
+
+### Client won't connect
+- Ensure server is running
+- Check API_BASE_URL in config.js
+- Verify CORS is enabled
+
+### Models not loading
+- Place trained models in `AAA-NetDQN/code/FINDER/models/`
+- Check model directory permissions
+- Verify model file formats
+
+## 📝 Development
+
+### Adding New Components
+
+1. Create component in `client/js/components/`
+2. Extend `BaseComponent`
+3. Implement required methods
+4. Add to `index.html`
+
+### Adding New API Endpoints
+
+1. Add route in `server/app.py`
+2. Implement service logic in `server/services/`
+3. Update `client/js/utils/api.js`
+4. Handle in components
+
+## 📄 License
 
 This system is part of the FINDER_ND research project.
+
+## 🤝 Contributing
+
+1. Follow the existing code structure
+2. Add tests for new features
+3. Update documentation
+4. Submit pull requests
+
+## 📧 Support
+
+For issues or questions, please refer to the project documentation or create an issue in the repository.

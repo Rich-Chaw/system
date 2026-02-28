@@ -20,9 +20,11 @@ import traceback
 sys.path.append('./AAA-NetDQN/code/FINDER_ND')
 sys.path.append('./AAA-NetDQN/code')
 
-from model_manager import ModelManager
-from graph_processor import GraphProcessor
-from dismantling_engine import DismantlingEngine
+from core.config import config
+from core.exceptions import FinderNDException
+from services.model_manager import ModelManager
+from services.graph_processor import GraphProcessor
+from services.dismantling_engine import DismantlingEngine
 
 app = Flask(__name__)
 CORS(app)
@@ -35,6 +37,31 @@ logger = logging.getLogger(__name__)
 model_manager = ModelManager()
 graph_processor = GraphProcessor()
 dismantling_engine = DismantlingEngine(model_manager)
+
+# Error handlers
+@app.errorhandler(FinderNDException)
+def handle_finder_exception(error):
+    """Handle custom FINDER_ND exceptions"""
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({
+        'success': False,
+        'error': 'Resource not found'
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"Internal server error: {error}")
+    return jsonify({
+        'success': False,
+        'error': 'Internal server error'
+    }), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

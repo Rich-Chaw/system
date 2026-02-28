@@ -1,2 +1,55 @@
-__pycache__
-/logs/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+server/logs/
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+temp/
+client/temp/
+*.bak
+
+# Test files (keep test components, remove test HTML)
+client/test_*.html
+
+# Model files (too large for git)
+*.ckpt
+*.h5
+*.pkl
+*.pth
+
+# Data files
+*.csv
+*.json.gz
+*.pickle

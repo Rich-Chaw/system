@@ -9,10 +9,11 @@ import argparse
 import logging
 
 # Add server directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'server'))
+server_dir = os.path.join(os.path.dirname(__file__), 'server')
+sys.path.insert(0, server_dir)
 
-from server.app import app
-from server.config import config
+from app import app
+from core.config import config
 
 def setup_logging(log_level):
     """Setup logging configuration"""
@@ -48,7 +49,7 @@ def main():
     
     # Check if models directory exists
     models_dir = app.config.get('MODELS_DIR')
-    if not os.path.exists(models_dir):
+    if models_dir and not os.path.exists(models_dir):
         logger.warning(f"Models directory not found: {models_dir}")
         logger.warning("Please ensure your trained models are available")
     

@@ -760,8 +760,12 @@ class GraphUploadComponent extends BaseComponent {
         
         let html = '';
         
+        // Initialize parameters with default values if not already set
         Object.entries(presetConfig.parameters).forEach(([paramName, paramConfig]) => {
-            const value = this.presetParameters[paramName] || paramConfig.default;
+            if (this.presetParameters[paramName] === undefined) {
+                this.presetParameters[paramName] = paramConfig.default;
+            }
+            const value = this.presetParameters[paramName];
             html += `
                 <div class="parameter-group">
                     <label for="preset_${paramName}" class="form-label">${paramConfig.label}</label>
@@ -786,6 +790,14 @@ class GraphUploadComponent extends BaseComponent {
                 this.handleParameterChange(e.target.dataset.param, e.target.value);
             });
         });
+        
+        // Validate all parameters with their default values
+        Object.entries(presetConfig.parameters).forEach(([paramName, paramConfig]) => {
+            this.validateParameter(paramName, this.presetParameters[paramName]);
+        });
+        
+        // Update button state after validation
+        this.updateGenerateButtonState();
     }
     
     showPresetDescription(type) {

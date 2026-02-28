@@ -27,7 +27,7 @@ if sys.platform.startswith('win'):
         pass
 
 # Add GraphDQN path
-from config import Config
+from core.config import Config
 FINDER_ND_PATH = Config.FINDER_ND_DIR
 FINDER_CODE_PATH = Config.FINDER_CODE_DIR 
 if FINDER_ND_PATH not in sys.path:
@@ -70,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 class ModelManager:
     def __init__(self):
-        self.models_dir = './AAA-NetDQN/code/FINDER/models'
+        self.models_dir = Config.MODELS_DIR
         self.loaded_models: Dict[str, GraphDQN] = {}
         self.model_configs = self._discover_models()
         
