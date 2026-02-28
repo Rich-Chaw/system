@@ -17,8 +17,8 @@ import logging
 import traceback
 
 # Add the FINDER_ND code path
-sys.path.append('./AAA-NetDQN/code/FINDER_ND')
-sys.path.append('./AAA-NetDQN/code')
+# sys.path.append('./AAA-NetDQN/code/FINDER_ND')
+# sys.path.append('./AAA-NetDQN/code')
 
 from core.config import config
 from core.exceptions import FinderNDException

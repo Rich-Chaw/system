@@ -1,0 +1,70 @@
+{
+  "model_types": {
+    "finder": {
+      "name": "FINDER (DQN-based)",
+      "interface": "../AAA-NetDQN/python_interface.py",
+      "conda_env": null,
+      "python_path": null,
+      "graph_format": "networkx",
+      "parameters": {
+        "step_ratio": {
+          "type": "float",
+          "default": 0.01,
+          "min": 0.001,
+          "max": 0.1,
+          "description": "Step ratio for dismantling"
+        }
+      }
+    },
+    "mind": {
+      "name": "MIND-ND (SAC-based)",
+      "interface": "../MIND-ND/python_interface.py",
+      "conda_env": "mind",
+      "python_path": null,
+      "graph_format": "igraph",
+      "parameters": {
+        "budget": {
+          "type": "float",
+          "default": 0.1,
+          "min": 0.01,
+          "max": 1.0,
+          "description": "Budget for dismantling (fraction of nodes)"
+        },
+        "max_steps": {
+          "type": "int",
+          "default": null,
+          "min": 1,
+          "max": 10000,
+          "description": "Maximum number of steps"
+        }
+      }
+    },
+    "baseline": {
+      "name": "Baseline Heuristics",
+      "interface": "../baselines/baseline_interface.py",
+      "conda_env": null,
+      "python_path": null,
+      "graph_format": "igraph",
+      "parameters": {
+        "method": {
+          "type": "string",
+          "default": "Degree",
+          "options": ["Random", "Degree", "Betweenness", "PageRank", "CI", "CoreHD", "Spectral", "BPD"],
+          "description": "Baseline method to use"
+        },
+        "max_steps": {
+          "type": "int",
+          "default": null,
+          "min": 1,
+          "max": 10000,
+          "description": "Maximum number of steps"
+        }
+      }
+    }
+  },
+  "conda_settings": {
+    "use_conda": true,
+    "conda_executable": "conda",
+    "fallback_to_system_python": true
+  }
+}

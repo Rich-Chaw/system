@@ -1,19 +1,29 @@
 """
 Graph Processing utilities for FINDER_ND server
 Handles graph input/output and format conversion
+Supports both NetworkX and igraph formats
 """
 
 import networkx as nx
 import numpy as np
 import json
 import logging
-from typing import Dict, List, Union, Any
+import pickle
+from typing import Dict, List, Union, Any, Tuple
+
+try:
+    import igraph as ig
+    IGRAPH_AVAILABLE = True
+except ImportError:
+    IGRAPH_AVAILABLE = False
+    logging.warning("igraph not available. Install with: pip install python-igraph")
 
 logger = logging.getLogger(__name__)
 
 class GraphProcessor:
     def __init__(self):
-        self.supported_formats = ['edgelist', 'adjacency_list', 'json', 'gml', 'graphml']
+        self.supported_formats = ['edgelist', 'adjacency_list', 'json', 'gml', 'graphml', 'pkl']
+        self.igraph_available = IGRAPH_AVAILABLE
     
     def parse_graph(self, graph_data: Union[Dict, List, str]) -> nx.Graph:
         """Parse graph from various input formats"""
@@ -119,7 +129,9 @@ class GraphProcessor:
         """Load graph from file"""
         
         # Determine format from extension
-        if filepath.endswith('.gml'):
+        if filepath.endswith('.pkl'):
+            return self._load_from_pickle(filepath)
+        elif filepath.endswith('.gml'):
             return nx.read_gml(filepath)
         elif filepath.endswith('.graphml'):
             return nx.read_graphml(filepath)
@@ -130,6 +142,21 @@ class GraphProcessor:
         else:
             # Default to edge list
             return nx.read_edgelist(filepath, nodetype=int)
+    
+    def _load_from_pickle(self, filepath: str) -> nx.Graph:
+        """Load graph from pickle file (supports both NetworkX and igraph)"""
+        with open(filepath, 'rb') as f:
+            graph = pickle.load(f)
+        
+        # Check if it's an igraph object
+        if IGRAPH_AVAILABLE and isinstance(graph, ig.Graph):
+            logger.info("Loaded igraph object from pickle, converting to NetworkX")
+            return self.igraph_to_networkx(graph)
+        elif isinstance(graph, nx.Graph):
+            logger.info("Loaded NetworkX graph from pickle")
+            return graph
+        else:
+            raise ValueError(f"Pickle file contains unsupported type: {type(graph)}")
     
     def graph_to_dict(self, graph: nx.Graph) -> Dict[str, Any]:
         """Convert NetworkX graph to dictionary format"""
@@ -320,5 +347,89 @@ class GraphProcessor:
         if nodes != list(range(len(nodes))):
             mapping = {node: i for i, node in enumerate(nodes)}
             graph = nx.relabel_nodes(graph, mapping)
+        
+        return graph
+    
+    # ========== igraph Conversion Utilities ==========
+    
+    def igraph_to_networkx(self, graph: 'ig.Graph') -> nx.Graph:
+        """Convert igraph.Graph to networkx.Graph"""
+        if not IGRAPH_AVAILABLE:
+            raise ImportError("igraph is not available. Install with: pip install python-igraph")
+        
+        # Get edge list from igraph
+        edgelist = graph.get_edgelist()
+        
+        # Create NetworkX graph
+        nx_graph = nx.Graph()
+        nx_graph.add_edges_from(edgelist)
+        
+        # Copy vertex attributes
+        for attr_name in graph.vs.attributes():
+            attr_values = graph.vs[attr_name]
+            nx.set_node_attributes(nx_graph, dict(enumerate(attr_values)), attr_name)
+        
+        # Copy edge attributes
+        for attr_name in graph.es.attributes():
+            attr_values = graph.es[attr_name]
+            edge_attrs = {(e.source, e.target): attr_values[i] for i, e in enumerate(graph.es)}
+            nx.set_edge_attributes(nx_graph, edge_attrs, attr_name)
+        
+        # Copy graph attributes
+        for attr_name in graph.attributes():
+            nx_graph.graph[attr_name] = graph[attr_name]
+        
+        logger.info(f"Converted igraph to NetworkX: {nx_graph.number_of_nodes()} nodes, {nx_graph.number_of_edges()} edges")
+        return nx_graph
+    
+    def networkx_to_igraph(self, graph: nx.Graph) -> 'ig.Graph':
+        """Convert networkx.Graph to igraph.Graph"""
+        if not IGRAPH_AVAILABLE:
+            raise ImportError("igraph is not available. Install with: pip install python-igraph")
+        
+        # Ensure nodes are integers starting from 0
+        graph = self.preprocess_for_model(graph)
+        
+        # Get edge list
+        edgelist = list(graph.edges())
+        
+        # Create igraph graph
+        ig_graph = ig.Graph(n=graph.number_of_nodes(), edges=edgelist)
+        
+        # Copy node attributes
+        for attr_name in list(graph.nodes[0].keys()) if graph.number_of_nodes() > 0 else []:
+            attr_values = [graph.nodes[node].get(attr_name) for node in range(graph.number_of_nodes())]
+            ig_graph.vs[attr_name] = attr_values
+        
+        # Copy edge attributes
+        for attr_name in list(graph.edges[list(graph.edges())[0]].keys()) if graph.number_of_edges() > 0 else []:
+            attr_values = [graph.edges[edge].get(attr_name) for edge in graph.edges()]
+            ig_graph.es[attr_name] = attr_values
+        
+        # Copy graph attributes
+        for attr_name, attr_value in graph.graph.items():
+            ig_graph[attr_name] = attr_value
+        
+        # Add static_id attribute for MIND-ND compatibility
+        if 'static_id' not in ig_graph.vs.attributes():
+            ig_graph.vs['static_id'] = list(range(ig_graph.vcount()))
+        
+        # Add n_init attribute for MIND-ND compatibility
+        if 'n_init' not in ig_graph.attributes():
+            ig_graph['n_init'] = ig_graph.vcount()
+        
+        logger.info(f"Converted NetworkX to igraph: {ig_graph.vcount()} nodes, {ig_graph.ecount()} edges")
+        return ig_graph
+    
+    def ensure_igraph_attributes(self, graph: 'ig.Graph') -> 'ig.Graph':
+        """Ensure igraph has required attributes for MIND-ND"""
+        if not IGRAPH_AVAILABLE:
+            raise ImportError("igraph is not available")
+        
+        if 'static_id' not in graph.vs.attributes():
+            graph.vs['static_id'] = list(range(graph.vcount()))
+        
+        if 'n_init' not in graph.attributes():
+            graph['n_init'] = graph.vcount()
         
         return graph
