@@ -13,7 +13,7 @@ server_dir = os.path.join(os.path.dirname(__file__), 'server')
 sys.path.insert(0, server_dir)
 
 from app import app
-from core.config import config
+from config.config import config
 
 def setup_logging(log_level):
     """Setup logging configuration"""

@@ -164,43 +164,128 @@ class FinderNDClient {
         console.log('displayResults called with:', results);
         if (!results || !Array.isArray(results) || results.length === 0) return;
 
-        // Show results card
-        const resultsCard = document.getElementById('resultsCard');
-        if (resultsCard) resultsCard.style.display = 'block';
-
-        // Use first successful result for summary stats
-        const firstItem = results.find(r => r.result && !r.error);
-        if (!firstItem) {
+        const successfulResults = results.filter(r => r.result && !r.error);
+        if (successfulResults.length === 0) {
             console.warn('No successful results to display');
             return;
         }
 
-        const { removals, score, lcc_sizes } = firstItem.result;
+        // Show chart card and results card
+        const chartCard = document.getElementById('dismantlingChartCard');
+        const resultsCard = document.getElementById('resultsCard');
+        if (chartCard) chartCard.style.display = 'block';
+        if (resultsCard) resultsCard.style.display = 'block';
 
-        const nodesRemovedEl = document.getElementById('nodesRemoved');
-        const robustnessEl   = document.getElementById('robustness');
-        const finalCCEl      = document.getElementById('finalCC');
-        const executionTimeEl = document.getElementById('executionTime');
+        // Draw LCC progress chart (all models)
+        this.createDismantlingChart(successfulResults);
 
-        if (nodesRemovedEl) nodesRemovedEl.textContent = removals ? removals.length : 0;
-        if (robustnessEl)   robustnessEl.textContent   = score != null ? score.toFixed(4) : '-';
-        if (finalCCEl)      finalCCEl.textContent      = lcc_sizes && lcc_sizes.length ? lcc_sizes[lcc_sizes.length - 1] : '-';
-        if (executionTimeEl) executionTimeEl.textContent = '-';
+        // Build per-model stats table
+        this.buildModelStatsTable(successfulResults);
 
-        // Draw LCC curve chart (multi-model)
-        this.createDismantlingChart(results);
+        // Build tabbed removal sequences
+        this.buildRemovalTabs(successfulResults);
+    }
 
-        // Display solution table for first result
-        if (removals && removals.length > 0) {
-            this.displaySolutionDetails(removals, lcc_sizes || []);
-        }
+    buildModelStatsTable(results) {
+        const container = document.getElementById('modelStatsTable');
+        if (!container) return;
+
+        const colors = ['text-primary', 'text-success', 'text-info', 'text-warning', 'text-danger', 'text-secondary'];
+        const typeColors = { finder: 'primary', mind: 'info', baseline: 'secondary' };
+
+        let html = `<div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Model</th>
+                        <th class="text-center">Nodes Removed</th>
+                        <th class="text-center">Exec Time (s)</th>
+                        <th class="text-center">Robustness</th>
+                        <th class="text-center">Final LCC</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        results.forEach((item, i) => {
+            const { removals, score, lcc_sizes, execution_time } = item.result;
+            const type = item.modelConfig.type || '';
+            const badgeColor = typeColors[type] || 'secondary';
+            const finalLCC = lcc_sizes && lcc_sizes.length ? lcc_sizes[lcc_sizes.length - 1].toFixed(4) : '-';
+            html += `<tr>
+                <td>
+                    <span class="badge bg-${badgeColor} me-1">${type.toUpperCase()}</span>
+                    <small class="${colors[i % colors.length]}">${this.escapeHtml(item.modelConfig.name)}</small>
+                </td>
+                <td class="text-center fw-bold">${removals ? removals.length : '-'}</td>
+                <td class="text-center">${execution_time != null ? execution_time.toFixed(2) : '-'}</td>
+                <td class="text-center">${score != null ? score.toFixed(4) : '-'}</td>
+                <td class="text-center">${finalLCC}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    }
+
+    buildRemovalTabs(results) {
+        const tabsEl = document.getElementById('removalTabs');
+        const contentEl = document.getElementById('removalTabContent');
+        if (!tabsEl || !contentEl) return;
+
+        tabsEl.innerHTML = '';
+        contentEl.innerHTML = '';
+
+        results.forEach((item, i) => {
+            const tabId = `removal-tab-${i}`;
+            const paneId = `removal-pane-${i}`;
+            const isActive = i === 0;
+
+            tabsEl.innerHTML += `
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ${isActive ? 'active' : ''}" id="${tabId}"
+                        data-bs-toggle="tab" data-bs-target="#${paneId}"
+                        type="button" role="tab">
+                        ${this.escapeHtml(item.modelConfig.name)}
+                    </button>
+                </li>`;
+
+            const { removals, lcc_sizes } = item.result;
+            let tableHtml = `<div class="bg-light p-2" style="max-height:220px;overflow-y:auto;font-family:monospace;font-size:0.85rem;">
+                <div class="row fw-bold border-bottom mb-1 px-1">
+                    <div class="col-2">Step</div>
+                    <div class="col-5">Node Removed</div>
+                    <div class="col-5">LCC (fraction)</div>
+                </div>`;
+
+            const limit = Math.min((removals || []).length, 100);
+            for (let j = 0; j < limit; j++) {
+                const lcc = lcc_sizes && lcc_sizes[j + 1] != null ? lcc_sizes[j + 1].toFixed(4) : '-';
+                tableHtml += `<div class="row removal-step px-1">
+                    <div class="col-2">${j + 1}</div>
+                    <div class="col-5">${removals[j]}</div>
+                    <div class="col-5">${lcc}</div>
+                </div>`;
+            }
+            if ((removals || []).length > 100) {
+                tableHtml += `<div class="text-muted text-center mt-1">... and ${removals.length - 100} more</div>`;
+            }
+            tableHtml += `</div>`;
+
+            contentEl.innerHTML += `
+                <div class="tab-pane fade ${isActive ? 'show active' : ''}" id="${paneId}" role="tabpanel">
+                    ${tableHtml}
+                </div>`;
+        });
+    }
+
+    escapeHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     createDismantlingChart(results) {
         const canvas = document.getElementById('dismantlingChart');
         if (!canvas) return;
 
-        // Destroy previous chart instance if any
         if (this._dismantlingChart) {
             this._dismantlingChart.destroy();
         }
@@ -232,41 +317,17 @@ class FinderNDClient {
             options: {
                 responsive: true,
                 plugins: {
-                    title: { display: true, text: 'Network Dismantling Progress' },
-                    legend: { display: true }
+                    legend: { display: true, position: 'top' }
                 },
                 scales: {
                     x: { title: { display: true, text: 'Removal Step' } },
-                    y: { title: { display: true, text: 'Largest CC Size' } }
+                    y: {
+                        title: { display: true, text: 'LCC Size (fraction)' },
+                        min: 0, max: 1
+                    }
                 }
             }
         });
-    }
-
-    displaySolutionDetails(removals, lcc_sizes) {
-        const detailsDiv = document.getElementById('solutionDetails');
-        if (!detailsDiv) return;
-
-        let html = `<div class="row fw-bold border-bottom mb-1">
-            <div class="col-2">Step</div>
-            <div class="col-4">Node Removed</div>
-            <div class="col-6">Largest CC</div>
-        </div>`;
-
-        const limit = Math.min(removals.length, 50);
-        for (let i = 0; i < limit; i++) {
-            html += `<div class="removal-step row">
-                <div class="col-2">${i + 1}</div>
-                <div class="col-4">${removals[i]}</div>
-                <div class="col-6">${lcc_sizes[i + 1] != null ? lcc_sizes[i + 1] : '-'}</div>
-            </div>`;
-        }
-
-        if (removals.length > 50) {
-            html += `<div class="text-muted text-center mt-2">... and ${removals.length - 50} more steps</div>`;
-        }
-
-        detailsDiv.innerHTML = html;
     }
 
     // Graph visualization is now handled by SimpleVisualizationComponent

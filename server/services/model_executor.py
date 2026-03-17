@@ -7,6 +7,7 @@ import subprocess
 import json
 import tempfile
 import os
+import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
@@ -109,14 +110,16 @@ class ModelExecutor:
                 **kwargs
             )
             
-            # Execute
+            # Execute and time it
             logger.info(f"Executing {model_type} model: {' '.join(cmd)}")
+            t_start = time.time()
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=300  # 5 minute timeout
             )
+            execution_time = round(time.time() - t_start, 3)
             
             if result.returncode != 0:
                 logger.error(f"Model execution failed: {result.stderr}")
@@ -130,7 +133,11 @@ class ModelExecutor:
             score = results.get('robustness', results.get('score', 0.0))
             lcc_sizes = results.get('lcc_sizes', results.get('MaxCCList', []))
             
-            return removals, score, lcc_sizes
+            # MIND and baseline interfaces don't return lcc_sizes — compute from removals
+            if not lcc_sizes and removals:
+                lcc_sizes = self._compute_lcc_sizes(graph, removals, model_config['graph_format'])
+            
+            return removals, score, lcc_sizes, execution_time
             
         finally:
             # Cleanup temporary files
@@ -140,7 +147,54 @@ class ModelExecutor:
                         os.unlink(path)
                     except:
                         pass
-    
+
+    def _compute_lcc_sizes(self, graph, removals: List[int], graph_format: str) -> List[int]:
+        """
+        Compute largest-connected-component size after each removal.
+        Works for both networkx (finder) and igraph (mind/baseline) graphs.
+        Returns a list of length len(removals)+1: initial LCC + one entry per removal.
+        """
+        try:
+            if graph_format == 'networkx':
+                import networkx as nx
+                g = graph.copy()
+                n0 = max((len(c) for c in nx.connected_components(g)), default=0)
+                sizes = [1]
+                for node in removals:
+                    if node in g:
+                        g.remove_node(node)
+                    lcc = max((len(c) for c in nx.connected_components(g)), default=0)/n0
+                    sizes.append(lcc)
+            else:
+                # igraph — node ids are static_id attributes
+                import igraph as ig
+                g = graph.copy()
+                # Build mapping from static_id -> current vertex index
+                if 'static_id' in g.vs.attributes():
+                    id_to_idx = {v['static_id']: v.index for v in g.vs}
+                else:
+                    id_to_idx = {v.index: v.index for v in g.vs}
+                n0 = max(g.clusters().sizes()) if g.vcount() > 0 else 0
+                sizes = [1]
+                for node in removals:
+                    idx = id_to_idx.get(node)
+                    if idx is not None and g.vcount() > 0:
+                        try:
+                            g.delete_vertices(idx)
+                            # Rebuild mapping after deletion (indices shift)
+                            if 'static_id' in g.vs.attributes():
+                                id_to_idx = {v['static_id']: v.index for v in g.vs}
+                            else:
+                                id_to_idx = {v.index: v.index for v in g.vs}
+                        except Exception:
+                            pass
+                    lcc = max(g.clusters().sizes()) if g.vcount() > 0 else 0
+                    sizes.append(lcc/n0)
+            return sizes
+        except Exception as e:
+            logger.warning(f"Failed to compute lcc_sizes: {e}")
+            return []
+
     def _build_command(self,
                       model_type: str,
                       model_config: Dict,

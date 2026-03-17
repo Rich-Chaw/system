@@ -1,5 +1,5 @@
 """
-Core server functionality
+Server configuration package
 """
 
 from .config import Config, DevelopmentConfig, ProductionConfig, config
@@ -12,13 +12,7 @@ from .exceptions import (
 )
 
 __all__ = [
-    'Config',
-    'DevelopmentConfig',
-    'ProductionConfig',
-    'config',
-    'FinderNDException',
-    'GraphProcessingError',
-    'ModelLoadError',
-    'DismantlingError',
-    'ValidationError'
+    'Config', 'DevelopmentConfig', 'ProductionConfig', 'config',
+    'FinderNDException', 'GraphProcessingError', 'ModelLoadError',
+    'DismantlingError', 'ValidationError'
 ]

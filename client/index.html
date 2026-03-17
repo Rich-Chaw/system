@@ -212,66 +212,38 @@
                     <!-- Progress Control Component will be rendered here -->
                 </div>
 
-                <!-- Results -->
-                <div class="card mt-3" id="resultsCard" style="display: none;">
+                <!-- Dismantling Progress Chart (separate component) -->
+                <div class="card mt-3" id="dismantlingChartCard" style="display: none;">
                     <div class="card-header">
-                        <h5><i class="fas fa-chart-line"></i> Dismantling Results</h5>
+                        <h5><i class="fas fa-chart-line"></i> Network Dismantling Progress</h5>
                     </div>
                     <div class="card-body">
-                        <!-- Summary Stats -->
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h4 class="text-primary" id="nodesRemoved">-</h4>
-                                    <small>Nodes Removed</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h4 class="text-success" id="executionTime">-</h4>
-                                    <small>Execution Time (s)</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h4 class="text-info" id="robustness">-</h4>
-                                    <small>Robustness</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <h4 class="text-warning" id="finalCC">-</h4>
-                                    <small>Final Largest CC</small>
-                                </div>
-                            </div>
-                        </div>
+                        <canvas id="dismantlingChart" height="120"></canvas>
+                    </div>
+                </div>
 
-                        <!-- Charts -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <canvas id="dismantlingChart" width="400" height="200"></canvas>
-                            </div>
-                            <div class="col-md-6">
-                                <canvas id="metricsChart" width="400" height="200"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- Solution Details -->
-                        <div class="mt-3">
-                            <h6>Removal Sequence:</h6>
-                            <div id="solutionDetails" class="bg-light p-2" style="max-height: 200px; overflow-y: auto;">
-                                <!-- Solution details will be populated here -->
-                            </div>
-                        </div>
-
-                        <!-- Export Options -->
-                        <div class="mt-3">
+                <!-- Results -->
+                <div class="card mt-3" id="resultsCard" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-table"></i> Dismantling Results</h5>
+                        <div>
                             <button class="btn btn-outline-primary btn-sm" id="exportSolution">
-                                <i class="fas fa-download"></i> Export Solution
+                                <i class="fas fa-download"></i> Export
                             </button>
-                            <button class="btn btn-outline-secondary btn-sm" id="exportResults">
-                                <i class="fas fa-file-export"></i> Export Results
+                            <button class="btn btn-outline-secondary btn-sm ms-1" id="exportResults">
+                                <i class="fas fa-file-export"></i> JSON
                             </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Per-model stats table -->
+                        <div id="modelStatsTable" class="mb-3"></div>
+
+                        <!-- Per-model removal sequence (tabbed) -->
+                        <div id="removalSequenceSection">
+                            <h6>Removal Sequence:</h6>
+                            <ul class="nav nav-tabs mb-2" id="removalTabs" role="tablist"></ul>
+                            <div class="tab-content" id="removalTabContent"></div>
                         </div>
                     </div>
                 </div>

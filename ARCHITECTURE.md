@@ -2,7 +2,7 @@
 
 ## Overview
 
-FINDER_ND is a web-based network dismantling system with a Flask backend and component-based frontend.
+FINDER_ND is a web-based network dismantling system with a Flask backend and component-based frontend. Models run in isolated conda environments and are invoked via subprocess through a unified `ModelExecutor` interface.
 
 ## Architecture Diagram
 
@@ -37,48 +37,47 @@ FINDER_ND is a web-based network dismantling system with a Flask backend and com
 ┌─────────────────────────────────────────────────────────────┐
 │                      Flask Server                            │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │                   API Layer                            │  │
-│  │  ┌──────────────────────────────────────────────────┐ │  │
-│  │  │  Routes: /api/health, /api/models, etc.         │ │  │
-│  │  │  • Request validation                             │ │  │
-│  │  │  • Response formatting                            │ │  │
-│  │  │  • Error handling                                 │ │  │
-│  │  └──────────────────────────────────────────────────┘ │  │
+│  │                   API Layer (app.py)                   │  │
+│  │  Routes: /api/health, /api/models, /api/dismantle,    │  │
+│  │          /api/dismantle_multi, /api/dismantle/execute  │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                              │                               │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │                  Core Layer                            │  │
-│  │  ┌──────────────┐  ┌──────────────┐                  │  │
-│  │  │    Config    │  │  Exceptions  │                  │  │
-│  │  │              │  │              │                  │  │
-│  │  └──────────────┘  └──────────────┘                  │  │
+│  │              config/ (Config & Exceptions)             │  │
+│  │  config.py  •  exceptions.py                          │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                              │                               │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │                 Services Layer                         │  │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │  │
-│  │  │    Model     │  │    Graph     │  │ Dismantling│  │  │
+│  │  │    Model     │  │    Graph     │  │Dismantling │  │  │
 │  │  │   Manager    │  │  Processor   │  │   Engine   │  │  │
 │  │  │              │  │              │  │            │  │  │
-│  │  │ • Load models│  │ • Parse      │  │ • Execute  │  │  │
-│  │  │ • Cache      │  │ • Validate   │  │ • Metrics  │  │  │
-│  │  │ • Manage     │  │ • Generate   │  │ • Compare  │  │  │
-│  │  └──────────────┘  └──────────────┘  └────────────┘  │  │
+│  │  │ • List models│  │ • Parse      │  │ • Execute  │  │  │
+│  │  │ • Delegate   │  │ • Validate   │  │ • Metrics  │  │  │
+│  │  │   to executor│  │ • Generate   │  │ • Compare  │  │  │
+│  │  └──────┬───────┘  └──────────────┘  └────────────┘  │  │
+│  │         │                                              │  │
+│  │  ┌──────▼───────┐                                     │  │
+│  │  │    Model     │                                     │  │
+│  │  │   Executor   │                                     │  │
+│  │  │              │                                     │  │
+│  │  │ • subprocess │                                     │  │
+│  │  │ • conda envs │                                     │  │
+│  │  │ • pkl I/O    │                                     │  │
+│  │  └──────────────┘                                     │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    GraphDQN Models                           │
-│  • Trained neural networks                                   │
-│  • Graph neural network encoders                             │
-│  • Policy networks                                           │
-└─────────────────────────────────────────────────────────────┘
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        FINDER (tf_py37)  MIND-ND        Baselines
+        python_interface  (torch_py38)   (torch_py38)
 ```
 
 ## Component Flow
 
-### 1. Graph Upload Flow
+### Graph Upload Flow
 
 ```
 User → GraphUploadComponent → API Client → Server
@@ -94,269 +93,87 @@ User → GraphUploadComponent → API Client → Server
                                     SimpleVisualizationComponent
 ```
 
-### 2. Dismantling Flow
+### Dismantling Flow
 
 ```
-User → ModelSelectionComponent → API Client → Server
-                                                 ↓
-                                       ModelManager (load model)
-                                                 ↓
-                                       DismantlingEngine
-                                                 ↓
-                                       Execute dismantling
-                                                 ↓
-                                       Calculate metrics
-                                                 ↓
-                                       Response → Client
-                                                 ↓
-                                       MultiViewVisualizationComponent
-                                                 ↓
-                                       ProgressControlComponent
+User → ModelSelectionComponent → API Client → /api/dismantle/execute
+                                                       ↓
+                                             ModelManager
+                                                       ↓
+                                             ModelExecutor
+                                                       ↓
+                                        subprocess (conda run -n <env>)
+                                                       ↓
+                                        python_interface.py
+                                                       ↓
+                                        JSON result → Client
+                                                       ↓
+                                        MultiViewVisualizationComponent
+                                                       ↓
+                                        ProgressControlComponent
 ```
 
-### 3. Multi-Model Flow
+## Directory Structure
 
 ```
-User → ModelSelectionComponent (multiple models)
-         ↓
-    API Client → Server
-                   ↓
-         DismantlingEngine.dismantle_multi_model()
-                   ↓
-         For each model:
-           • Load model
-           • Execute dismantling
-           • Calculate metrics
-                   ↓
-         Compare results
-                   ↓
-         Response → Client
-                   ↓
-         MultiViewVisualizationComponent (multiple views)
-                   ↓
-         ProgressControlComponent (synchronized)
+system/
+├── server/
+│   ├── app.py                  # Flask routes
+│   ├── config/                 # Config & exceptions
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── exceptions.py
+│   │   └── model_environments.json
+│   └── services/
+│       ├── model_manager.py    # Lists models, delegates to executor
+│       ├── model_executor.py   # subprocess + conda execution
+│       ├── dismantling_engine.py
+│       └── graph_processor.py
+└── client/
+    ├── index.html
+    ├── app.js
+    └── js/
+        ├── core/               # EventBus, ComponentManager, BaseComponent
+        ├── components/         # UI components
+        └── utils/              # API client
 ```
 
-## Data Flow
+## Model Execution
 
-### Request Flow
-```
-Client Component
-    ↓ (emit event)
-EventBus
-    ↓ (notify listeners)
-API Client
-    ↓ (HTTP request)
-Flask Server
-    ↓ (route to handler)
-Service Layer
-    ↓ (business logic)
-Response
-```
+All models run in isolated conda environments via `ModelExecutor`:
 
-### Response Flow
-```
-Service Layer
-    ↓ (return data)
-Flask Server
-    ↓ (format response)
-API Client
-    ↓ (parse response)
-EventBus
-    ↓ (emit event)
-Component
-    ↓ (update UI)
-User
-```
+| Model Type | Conda Env   | Interface                        | Graph Format |
+|------------|-------------|----------------------------------|--------------|
+| finder     | tf_py37     | FINDER/python_interface.py       | networkx     |
+| mind       | torch_py38  | MIND-ND/python_interface.py      | igraph       |
+| baseline   | torch_py38  | baselines/baseline_interface.py  | igraph       |
 
-## Component Communication
-
-### Event-Based Communication
-
-```
-Component A                EventBus                Component B
-    │                         │                         │
-    │──emit('graph:loaded')──>│                         │
-    │                         │──notify listeners──────>│
-    │                         │                         │
-    │                         │<──emit('viz:ready')─────│
-    │<──notify listeners──────│                         │
-```
-
-### State Management
-
-```
-Component
-    │
-    ├─ setState(newState)
-    │     ↓
-    ├─ onStateChange(oldState, newState)
-    │     ↓
-    └─ render()
-```
-
-## Server Architecture
-
-### Layered Architecture
-
-```
-┌─────────────────────────────────────┐
-│         API Layer (app.py)          │  ← Routes, validation
-├─────────────────────────────────────┤
-│      Core Layer (core/)             │  ← Config, exceptions
-├─────────────────────────────────────┤
-│    Services Layer (services/)       │  ← Business logic
-├─────────────────────────────────────┤
-│    External Layer (GraphDQN)        │  ← ML models
-└─────────────────────────────────────┘
-```
-
-### Service Dependencies
-
-```
-DismantlingEngine
-    ↓ depends on
-ModelManager
-    ↓ depends on
-GraphDQN (external)
-
-GraphProcessor
-    ↓ independent
-NetworkX
-```
-
-## Client Architecture
-
-### Component Hierarchy
-
-```
-BaseComponent (abstract)
-    │
-    ├─ GraphUploadComponent
-    │     ├─ File upload
-    │     ├─ Manual input
-    │     └─ Preset generation
-    │
-    ├─ GraphStatisticsComponent
-    │     └─ Display stats
-    │
-    ├─ ModelSelectionComponent
-    │     ├─ Model selection
-    │     └─ Parameter config
-    │
-    ├─ SimpleVisualizationComponent
-    │     └─ D3.js visualization
-    │
-    ├─ MultiViewVisualizationComponent
-    │     └─ Multiple synchronized views
-    │
-    └─ ProgressControlComponent
-          └─ Step-by-step control
-```
-
-### Component Lifecycle
-
-```
-Constructor
-    ↓
-init()
-    ↓
-setupEventListeners()
-    ↓
-render()
-    ↓
-[User Interaction]
-    ↓
-setState()
-    ↓
-onStateChange()
-    ↓
-render()
-    ↓
-destroy()
-```
+The executor serializes the graph to a `.pkl` file, calls the interface script, and reads back a JSON result file.
 
 ## Technology Stack
 
 ### Backend
-- **Framework**: Flask
-- **Language**: Python 3.7+
-- **Libraries**: 
-  - NetworkX (graph processing)
-  - NumPy (numerical operations)
-  - TensorFlow (ML models)
+- Framework: Flask + flask-cors
+- Language: Python 3.7+
+- Libraries: NetworkX, NumPy, igraph
 
 ### Frontend
-- **Framework**: Vanilla JavaScript (ES6+)
-- **Libraries**:
-  - D3.js (visualization)
-  - Chart.js (charts)
-  - Bootstrap 5 (UI)
-
-### Communication
-- **Protocol**: HTTP/REST
-- **Format**: JSON
-- **CORS**: Enabled for development
+- Framework: Vanilla JavaScript (ES6+)
+- Libraries: D3.js, Chart.js, Bootstrap 5
 
 ## Security Considerations
 
-### Server
-- Input validation
-- File size limits
-- Request timeouts
-- Error handling (no sensitive data in responses)
-
-### Client
-- XSS prevention (sanitize inputs)
-- CSRF protection (for production)
-- Secure API communication
-
-## Performance Optimizations
-
-### Server
-- Model caching (loaded models stay in memory)
-- Efficient graph processing
-- Parallel model execution (future)
-
-### Client
-- Component-based rendering (only update changed parts)
-- Event-driven architecture (efficient communication)
-- Lazy loading (future)
-
-## Scalability
-
-### Horizontal Scaling
-- Stateless server design
-- Can run multiple server instances
-- Load balancer (future)
-
-### Vertical Scaling
-- Efficient memory management
-- Model caching
-- Optimized algorithms
-
-## Monitoring & Logging
-
-### Server Logging
-```
-INFO: Normal operations
-WARNING: Non-critical issues
-ERROR: Failures
-DEBUG: Detailed information
-```
-
-### Client Logging
-```
-Console logs (development)
-Error tracking (production)
-Performance metrics (future)
-```
+- Input validation on all endpoints
+- File size limits (16MB)
+- Request timeouts (5 min)
+- No sensitive data in error responses
 
 ## Deployment
 
 ### Development
 ```
-python scripts/start_system.py
+python system/run_server.py --config development
+python system/run_client.py
 ```
 
 ### Production (Future)
@@ -368,15 +185,8 @@ Gunicorn WSGI server
 
 ## Future Enhancements
 
-1. **API Versioning** (v1, v2)
-2. **Authentication** (JWT tokens)
-3. **Database** (PostgreSQL for results)
-4. **Job Queue** (Celery for long tasks)
-5. **WebSockets** (real-time updates)
-6. **Docker** (containerization)
-7. **CI/CD** (automated testing & deployment)
-8. **Monitoring** (Prometheus, Grafana)
-
----
-
-This architecture provides a solid foundation for a maintainable, scalable network dismantling system.
+1. WebSockets for real-time progress updates
+2. Job queue (Celery) for long-running tasks
+3. Authentication (JWT)
+4. Docker containerization
+5. CI/CD pipeline

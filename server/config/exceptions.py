@@ -19,24 +19,20 @@ class FinderNDException(Exception):
 
 
 class GraphProcessingError(FinderNDException):
-    """Exception raised for graph processing errors"""
     def __init__(self, message, status_code=400, payload=None):
         super().__init__(message, status_code, payload)
 
 
 class ModelLoadError(FinderNDException):
-    """Exception raised when model loading fails"""
     def __init__(self, message, status_code=500, payload=None):
         super().__init__(message, status_code, payload)
 
 
 class DismantlingError(FinderNDException):
-    """Exception raised during dismantling process"""
     def __init__(self, message, status_code=500, payload=None):
         super().__init__(message, status_code, payload)
 
 
 class ValidationError(FinderNDException):
-    """Exception raised for validation errors"""
     def __init__(self, message, status_code=400, payload=None):
         super().__init__(message, status_code, payload)

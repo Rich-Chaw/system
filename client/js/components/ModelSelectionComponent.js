@@ -188,7 +188,8 @@ class ModelSelectionComponent extends BaseComponent {
                         result: {
                             removals: data.removals,
                             score: data.score,
-                            lcc_sizes: data.lcc_sizes || []
+                            lcc_sizes: data.lcc_sizes || [],
+                            execution_time: data.execution_time != null ? data.execution_time : null
                         }
                     });
                 } else {

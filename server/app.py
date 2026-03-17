@@ -16,8 +16,8 @@ from datetime import datetime
 import logging
 import traceback
 
-from core.config import config
-from core.exceptions import FinderNDException
+from config.config import config
+from config.exceptions import FinderNDException
 from services.model_manager import ModelManager
 from services.graph_processor import GraphProcessor
 from services.dismantling_engine import DismantlingEngine
@@ -359,7 +359,7 @@ def dismantle_with_model_type():
             graph = graph_processor.networkx_to_igraph(graph)
         
         # Execute dismantling
-        removals, score, lcc_sizes = model_manager.dismantle_with_executor(
+        removals, score, lcc_sizes, execution_time = model_manager.dismantle_with_executor(
             graph=graph,
             model_type=model_type,
             model_path=model_path,
@@ -371,6 +371,7 @@ def dismantle_with_model_type():
             'removals': removals,
             'score': score,
             'lcc_sizes': lcc_sizes,
+            'execution_time': execution_time,
             'model_type': model_type
         })
         

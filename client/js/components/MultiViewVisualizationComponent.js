@@ -414,8 +414,27 @@ class MultiViewVisualizationComponent extends BaseComponent {
             // Update stats header
             const nodeCountEl = view.container.querySelector('.node-count');
             const edgeCountEl = view.container.querySelector('.edge-count');
-            if (nodeCountEl) nodeCountEl.textContent = removals.length + ' removed';
-            if (edgeCountEl) edgeCountEl.textContent = `score: ${item.result.score != null ? item.result.score.toFixed(4) : '-'}`;
+            const initialEdges = this.currentGraphData && this.currentGraphData.edges
+                ? this.currentGraphData.edges.length : null;
+            const finalEdges = lcc_sizes && lcc_sizes.length
+                ? null  // we don't track edge count per step here
+                : null;
+            if (nodeCountEl) nodeCountEl.textContent = removals.length + ' removed nodes';
+            if (edgeCountEl) {
+                // Count edges removed: edges where both endpoints are in removals set
+                const removedSet = new Set(removals);
+                let removedEdges = 0;
+                if (this.currentGraphData && this.currentGraphData.edges) {
+                    this.currentGraphData.edges.forEach(e => {
+                        const s = e.source != null ? e.source : e[0];
+                        const t = e.target != null ? e.target : e[1];
+                        if (removedSet.has(s) || removedSet.has(t)) removedEdges++;
+                    });
+                }
+                edgeCountEl.textContent = removedEdges > 0
+                    ? `${removedEdges} removed edges`
+                    : (item.result.score != null ? `score: ${item.result.score.toFixed(4)}` : '');
+            }
         });
 
         this.initializeSynchronizedState();
@@ -921,13 +940,12 @@ class SingleVisualizationView {
         // Clear existing content
         this.container.innerHTML = '';
         
-        const width = this.container.clientWidth || 300;
         const height = this.options.viewHeight || 350;
         
-        // Create SVG
+        // Create SVG with 100% width so it fills the container regardless of layout timing
         this.svg = d3.select(this.container)
             .append('svg')
-            .attr('width', width)
+            .attr('width', '100%')
             .attr('height', height)
             .style('border', '1px solid #e9ecef')
             .style('border-radius', '0.375rem')
@@ -952,8 +970,9 @@ class SingleVisualizationView {
     }
     
     showEmptyState() {
-        const width = this.svg.attr('width');
-        const height = this.svg.attr('height');
+        const svgNode = this.svg.node();
+        const width = svgNode.clientWidth || svgNode.getBoundingClientRect().width || 300;
+        const height = parseFloat(this.svg.attr('height')) || 350;
         
         this.emptyStateGroup = this.svg.append('g')
             .attr('class', 'empty-state')
@@ -1026,8 +1045,8 @@ class SingleVisualizationView {
             });
         });
         
-        const width = this.svg.attr('width');
-        const height = this.svg.attr('height');
+        const width = this.container.clientWidth || this.svg.node().getBoundingClientRect().width || 400;
+        const height = this.options.viewHeight || 350;
         
         // Create force simulation
         this.simulation = d3.forceSimulation(nodes)
@@ -1075,30 +1094,76 @@ class SingleVisualizationView {
                 .attr('fill', '#495057');
         }
         
-        // Update positions on simulation tick
-        this.simulation.on('tick', () => {
-            this.linkSelection
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
-            
-            this.nodeSelection
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y);
-            
-            if (this.labelSelection) {
-                this.labelSelection
-                    .attr('x', d => d.x)
-                    .attr('y', d => d.y);
-            }
-        });
-        
         // Store data references
         this.nodes = nodes;
         this.links = links;
+
+        // Pre-compute stable positions synchronously (300 ticks is enough for most graphs)
+        this.simulation.stop();
+        for (let i = 0; i < 300; i++) this.simulation.tick();
+
+        // Apply pre-computed positions immediately
+        this.linkSelection
+            .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        this.nodeSelection.attr('cx', d => d.x).attr('cy', d => d.y);
+        if (this.labelSelection) {
+            this.labelSelection.attr('x', d => d.x).attr('y', d => d.y);
+        }
+
+        // Keep live ticking active for drag interactions
+        this.simulation.on('tick', () => {
+            this.linkSelection
+                .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+            this.nodeSelection.attr('cx', d => d.x).attr('cy', d => d.y);
+            if (this.labelSelection) {
+                this.labelSelection.attr('x', d => d.x).attr('y', d => d.y);
+            }
+        });
+        this.simulation.alpha(0.05).restart();
+
+        // Fit after a short delay so the SVG has real pixel dimensions
+        setTimeout(() => this.fitGraph(), 50);
     }
     
+    fitGraph() {
+        if (!this.graphContainer || !this.svg || !this.nodes || this.nodes.length === 0) return;
+        const svgNode = this.svg.node();
+        // clientWidth is 0 for SVG with width="100%", use the parent container instead
+        const svgWidth = this.container.clientWidth || this.container.offsetWidth ||
+                         svgNode.getBoundingClientRect().width || 400;
+        const svgHeight = parseFloat(this.svg.attr('height')) || 350;
+        const padding = 24;
+
+        // Compute bounding box of all non-NaN node positions
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        this.nodes.forEach(d => {
+            if (isFinite(d.x) && isFinite(d.y)) {
+                if (d.x < minX) minX = d.x;
+                if (d.x > maxX) maxX = d.x;
+                if (d.y < minY) minY = d.y;
+                if (d.y > maxY) maxY = d.y;
+            }
+        });
+        if (!isFinite(minX)) return;
+
+        const graphW = (maxX - minX) || 1;
+        const graphH = (maxY - minY) || 1;
+        const scale = Math.min(
+            (svgWidth  - padding * 2) / graphW,
+            (svgHeight - padding * 2) / graphH,
+            3
+        );
+        const tx = (svgWidth  - graphW * scale) / 2 - minX * scale;
+        const ty = (svgHeight - graphH * scale) / 2 - minY * scale;
+
+        this.svg.transition().duration(400).call(
+            this.zoom.transform,
+            d3.zoomIdentity.translate(tx, ty).scale(scale)
+        );
+    }
+
     createDragBehavior() {
         return d3.drag()
             .on('start', (event, d) => {
@@ -1327,11 +1392,7 @@ class SingleVisualizationView {
     }
     
     resetZoom() {
-        if (this.svg && this.zoom) {
-            this.svg.transition()
-                .duration(750)
-                .call(this.zoom.transform, d3.zoomIdentity);
-        }
+        this.fitGraph();
     }
     
     getCurrentTransform() {
