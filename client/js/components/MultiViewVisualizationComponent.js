@@ -359,205 +359,72 @@ class MultiViewVisualizationComponent extends BaseComponent {
     }
     
     /**
-     * Handle dismantling results from multiple models
+     * Handle dismantling results from multiple models.
+     * Accepts array format: [{modelConfig: {id, name, type}, result: {removals, score, lcc_sizes}}, ...]
      */
     handleDismantlingResults(results) {
-        console.log('=== handleDismantlingResults called ===');
-        console.log('Results type:', Array.isArray(results) ? 'array' : typeof results);
-        console.log('Results:', results);
-        
-        // Results can be either an array or an object
-        if (!results) return;
-        
-        // Convert array format to object format if needed
-        let resultsObj = {};
-        if (Array.isArray(results)) {
-            console.log('Converting array format to object format');
-            // Array format: [{modelConfig: {...}, result: {...}}, ...]
-            results.forEach(item => {
-                if (item.modelConfig && item.result) {
-                    console.log(`  Model ${item.modelConfig.id}: has stepByStep?`, !!item.result.stepByStep);
-                    resultsObj[item.modelConfig.id] = item.result;
-                }
-            });
-        } else if (typeof results === 'object') {
-            // Object format: {modelId: result, ...}
-            resultsObj = results;
-        } else {
-            console.error('Invalid results format:', results);
-            return;
-        }
-        
-        console.log('Processing dismantling results for models:', Object.keys(resultsObj));
-        
-        // Store step data for progress control and synchronization
+        if (!results || !Array.isArray(results)) return;
+
         this.sharedState.stepData.clear();
         this.sharedState.maxSteps = 0;
-        
-        // Process results for each model
-        Object.entries(resultsObj).forEach(([modelIdStr, modelResults]) => {
-            // Convert string key back to number to match view IDs
-            const modelId = parseInt(modelIdStr);
+
+        results.forEach(item => {
+            if (!item.modelConfig || !item.result) return;
+
+            const modelId = item.modelConfig.id;
             const view = this.views.get(modelId);
             if (!view) {
-                console.warn(`No view found for model ${modelId} (string: ${modelIdStr})`);
-                console.log('Available view IDs:', Array.from(this.views.keys()));
+                console.warn(`No view found for model id ${modelId}`);
                 return;
             }
-            
-            console.log(`Processing model ${modelId}:`, {
-                hasStepByStep: !!modelResults.stepByStep,
-                stepCount: modelResults.stepByStep ? modelResults.stepByStep.length : 0,
-                hasSolution: !!modelResults.solution,
-                solutionLength: modelResults.solution ? modelResults.solution.length : 0
-            });
-            
-            // Update view status
+
+            const { removals, lcc_sizes } = item.result;
+            if (!removals || removals.length === 0) return;
+
             this.updateViewStatus(modelId, 'completed');
-            
-            // Store step-by-step data for synchronization
-            if (modelResults.stepByStep) {
-                console.log(`Model ${modelId} has ${modelResults.stepByStep.length} steps`);
-                modelResults.stepByStep.forEach((stepData, stepIndex) => {
-                    if (!this.sharedState.stepData.has(stepIndex)) {
-                        this.sharedState.stepData.set(stepIndex, new Map());
-                    }
-                    
-                    // Normalize step data for synchronization
-                    const normalizedStepData = this.normalizeStepData(stepData, modelResults);
-                    this.sharedState.stepData.get(stepIndex).set(modelId, normalizedStepData);
+
+            // Build step-by-step data from removals + lcc_sizes
+            const steps = removals.length;
+            for (let i = 0; i <= steps; i++) {
+                if (!this.sharedState.stepData.has(i)) {
+                    this.sharedState.stepData.set(i, new Map());
+                }
+                this.sharedState.stepData.get(i).set(modelId, {
+                    step: i,
+                    nodeRemoved: i > 0 ? removals[i - 1] : null,
+                    removedNodes: removals.slice(0, i),
+                    largestCCSize: lcc_sizes && lcc_sizes[i] != null ? lcc_sizes[i] : null
                 });
-                
-                this.sharedState.maxSteps = Math.max(
-                    this.sharedState.maxSteps, 
-                    modelResults.stepByStep.length - 1  // -1 because step 0 is initial state
-                );
-            } else {
-                console.warn(`Model ${modelId} has no stepByStep data`);
             }
-            
-            // Initialize view with dismantling results
-            console.log(`Calling setDismantlingResults for model ${modelId}`);
-            view.visualization.setDismantlingResults(modelResults);
-            
-            // Update view stats to show initial state (step 0)
-            if (modelResults.stepByStep && modelResults.stepByStep.length > 0) {
-                const initialStep = modelResults.stepByStep[0];
-                console.log(`Updating stats for model ${modelId} with initial step:`, initialStep);
-                this.updateViewStatsFromStep(modelId, initialStep);
-            }
+
+            this.sharedState.maxSteps = Math.max(this.sharedState.maxSteps, steps);
+
+            // Pass normalized result to the view
+            view.visualization.setDismantlingResults({
+                solution: removals,
+                lcc_sizes: lcc_sizes || [],
+                stepByStep: removals.map((node, i) => ({
+                    step: i + 1,
+                    nodeRemoved: node,
+                    removedNodes: removals.slice(0, i + 1),
+                    largestCCSize: lcc_sizes && lcc_sizes[i + 1] != null ? lcc_sizes[i + 1] : null
+                }))
+            });
+
+            // Update stats header
+            const nodeCountEl = view.container.querySelector('.node-count');
+            const edgeCountEl = view.container.querySelector('.edge-count');
+            if (nodeCountEl) nodeCountEl.textContent = removals.length + ' removed';
+            if (edgeCountEl) edgeCountEl.textContent = `score: ${item.result.score != null ? item.result.score.toFixed(4) : '-'}`;
         });
-        
-        console.log(`Initialized ${this.sharedState.stepData.size} steps, max steps: ${this.sharedState.maxSteps}`);
-        
-        // Initialize synchronized state
+
         this.initializeSynchronizedState();
-        
-        // Enable progress control
-        this.emit('progress:enabled', { 
+
+        this.emit('progress:enabled', {
             maxSteps: this.sharedState.maxSteps,
-            models: Object.keys(resultsObj)
+            models: results.map(r => r.modelConfig)
         });
     }
-    
-    /**
-     * Update view statistics from step data
-     */
-    updateViewStatsFromStep(modelId, stepData) {
-        const view = this.views.get(modelId);
-        if (!view) {
-            console.warn(`updateViewStatsFromStep: No view found for model ${modelId}`);
-            return;
-        }
-        
-        const nodeCountEl = view.container.querySelector('.node-count');
-        const edgeCountEl = view.container.querySelector('.edge-count');
-        
-        if (!stepData) {
-            console.warn(`updateViewStatsFromStep: No step data for model ${modelId}`);
-            return;
-        }
-        
-        // Handle both camelCase and snake_case
-        const remainingNodes = stepData.remainingNodes || stepData.remaining_nodes || [];
-        const remainingEdges = stepData.remainingEdges || stepData.remaining_edges || [];
-        
-        const nodeCount = Array.isArray(remainingNodes) ? remainingNodes.length : 0;
-        const edgeCount = Array.isArray(remainingEdges) ? remainingEdges.length : 0;
-        
-        console.log(`Updating stats for model ${modelId}: ${nodeCount} nodes, ${edgeCount} edges`);
-        
-        if (nodeCountEl) {
-            nodeCountEl.textContent = nodeCount;
-        }
-        if (edgeCountEl) {
-            edgeCountEl.textContent = edgeCount;
-        }
-    }
-    
-    /**
-     * Normalize step data for consistent synchronization across models
-     */
-    normalizeStepData(stepData, modelResults) {
-        // Handle both camelCase and snake_case formats
-        const step = stepData.step || 0;
-        const nodeRemoved = stepData.nodeRemoved || stepData.node_removed || null;
-        const remainingNodes = stepData.remainingNodes || stepData.remaining_nodes || [];
-        const remainingEdges = stepData.remainingEdges || stepData.remaining_edges || [];
-        const largestCCSize = stepData.largestCCSize || stepData.largest_cc_size || 0;
-        const numComponents = stepData.numComponents || stepData.num_components || 0;
-        
-        // Calculate removed nodes up to this step
-        let removedNodes = [];
-        if (modelResults.solution && step > 0) {
-            removedNodes = modelResults.solution.slice(0, step);
-        }
-        
-        return {
-            step: step,
-            nodeRemoved: nodeRemoved,
-            removedNodes: removedNodes,
-            remainingNodes: remainingNodes,
-            remainingEdges: remainingEdges,
-            largestCCSize: largestCCSize,
-            numComponents: numComponents,
-            networkState: {
-                activeNodes: remainingNodes,
-                removedNodes: removedNodes,
-                largestCCSize: largestCCSize
-            },
-            timestamp: Date.now()
-        };
-    }
-    
-    /**
-     * Extract removed nodes from step data
-     */
-    extractRemovedNodes(stepData, modelResults) {
-        if (stepData.removedNodes) return stepData.removedNodes;
-        
-        // If we have the full solution, calculate removed nodes up to this step
-        if (modelResults.solution && stepData.step !== undefined) {
-            return modelResults.solution.slice(0, stepData.step + 1);
-        }
-        
-        return [];
-    }
-    
-    /**
-     * Extract network state from step data
-     */
-    extractNetworkState(stepData) {
-        if (stepData.networkState) return stepData.networkState;
-        
-        // Create basic network state from available data
-        return {
-            activeNodes: stepData.remainingNodes || [],
-            removedNodes: stepData.removedNodes || [],
-            largestCCSize: stepData.largestCCSize || stepData.largest_cc_size || 0
-        };
-    }
-    
     /**
      * Initialize synchronized state management
      */

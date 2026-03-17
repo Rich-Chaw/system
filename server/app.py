@@ -16,10 +16,6 @@ from datetime import datetime
 import logging
 import traceback
 
-# Add the FINDER_ND code path
-# sys.path.append('./AAA-NetDQN/code/FINDER_ND')
-# sys.path.append('./AAA-NetDQN/code')
-
 from core.config import config
 from core.exceptions import FinderNDException
 from services.model_manager import ModelManager
@@ -309,6 +305,78 @@ def evaluate_solution():
         
     except Exception as e:
         logger.error(f"Error evaluating solution: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/models/all', methods=['GET'])
+def get_all_models():
+    """Get all available models from all types (FINDER, MIND-ND, Baselines)"""
+    try:
+        all_models = model_manager.get_all_models()
+        return jsonify({
+            'success': True,
+            'models': all_models
+        })
+    except Exception as e:
+        logger.error(f"Error getting all models: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/dismantle/execute', methods=['POST'])
+def dismantle_with_model_type():
+    """Execute dismantling with specified model type (finder/mind/baseline)"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'graph' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Graph data is required'
+            }), 400
+        
+        if 'model_type' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'model_type is required (finder/mind/baseline)'
+            }), 400
+        
+        graph_data = data['graph']
+        model_type = data['model_type']
+        model_path = data.get('model_path')
+        parameters = data.get('parameters', {})
+        
+        # Parse graph
+        graph = graph_processor.parse_graph(graph_data)
+        
+        # Convert graph format if needed
+        if model_type in ['mind', 'baseline']:
+            # These models need igraph format
+            graph = graph_processor.networkx_to_igraph(graph)
+        
+        # Execute dismantling
+        removals, score, lcc_sizes = model_manager.dismantle_with_executor(
+            graph=graph,
+            model_type=model_type,
+            model_path=model_path,
+            **parameters
+        )
+        
+        return jsonify({
+            'success': True,
+            'removals': removals,
+            'score': score,
+            'lcc_sizes': lcc_sizes,
+            'model_type': model_type
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in dismantling execution: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': str(e)

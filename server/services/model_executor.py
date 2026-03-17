@@ -20,42 +20,70 @@ class ModelExecutor:
     Each model type has its own execution strategy.
     """
     
-    def __init__(self):
+    def __init__(self, config_path: Optional[str] = None):
         self.base_dir = Path(__file__).parent.parent.parent.parent  # Go up to GD2026
-        self.model_types = {
-            'finder': {
-                'interface': self.base_dir / 'AAA-NetDQN' / 'python_interface.py',
-                'conda_env': 'tf_py37',  # Uses current environment
-                'graph_format': 'networkx'
-            },
-            'mind': {
-                'interface': self.base_dir / 'MIND-ND' / 'python_interface.py',
-                'conda_env': 'torch_py38',  # Specify conda environment name
-                'graph_format': 'igraph'
-            },
-            'baseline': {
-                'interface': self.base_dir / 'baselines' / 'baseline_interface.py',
-                'conda_env': 'torch_py38',
-                'graph_format': 'igraph'
+        
+        # Load configuration
+        if config_path is None:
+            config_path = Path(__file__).parent.parent / 'config' / 'model_environments.json'
+        
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            # Build model types from config
+            self.model_types = {}
+            for model_type, model_config in config['model_types'].items():
+                interface_path = self.base_dir / model_config['interface'].lstrip('../')
+                self.model_types[model_type] = {
+                    'name': model_config['name'],
+                    'interface': interface_path,
+                    'conda_env': model_config.get('conda_env'),
+                    'python_path': model_config.get('python_path'),
+                    'graph_format': model_config['graph_format'],
+                    'parameters': model_config.get('parameters', {})
+                }
+            
+            self.conda_settings = config.get('conda_settings', {})
+            logger.info(f"Loaded model configuration from {config_path}")
+        else:
+            # Fallback to hardcoded config
+            logger.warning(f"Config file not found at {config_path}, using defaults")
+            self.model_types = {
+                'finder': {
+                    'interface': self.base_dir / 'FINDER' / 'python_interface.py',
+                    'conda_env': 'tf_py37',
+                    'graph_format': 'networkx'
+                },
+                'mind': {
+                    'interface': self.base_dir / 'MIND-ND' / 'python_interface.py',
+                    'conda_env': 'torch_py38',
+                    'graph_format': 'igraph'
+                },
+                'baseline': {
+                    'interface': self.base_dir / 'baselines' / 'baseline_interface.py',
+                    'conda_env': 'torch_py38',
+                    'graph_format': 'igraph'
+                }
             }
-        }
+            self.conda_settings = {'use_conda': True, 'fallback_to_system_python': True}
     
     def execute_model(self, 
                      graph,
                      model_type: str,
-                     model_path: str=None,
-                     **kwargs) -> Tuple[List[int], float, List[int]]:
+                     model_path: str = None,
+                     **kwargs) -> Tuple[List[int], float]:
         """
         Execute a model and return results.
         
         Args:
-            model_type: Type of model ('finder', 'mind', 'baseline')
-            model_path: Path to model checkpoint/config
             graph: Graph object (NetworkX or igraph)
-            **kwargs: Additional parameters (step_ratio, budget, etc.)
+            model_type: Type of model ('finder', 'mind', 'baseline')
+            model_path: Path to model checkpoint/config (optional for baselines)
+            **kwargs: Additional parameters (step_ratio, threshold, method, etc.)
         
         Returns:
-            (removals, score)
+            (removals, score) - List of removed nodes and robustness score
         """
         if model_type not in self.model_types:
             raise ValueError(f"Unknown model type: {model_type}")
@@ -100,9 +128,9 @@ class ModelExecutor:
             
             removals = results.get('removals', [])
             score = results.get('robustness', results.get('score', 0.0))
-            # lcc_sizes = results.get('lcc_sizes', results.get('MaxCCList', []))
+            lcc_sizes = results.get('lcc_sizes', results.get('MaxCCList', []))
             
-            return removals, score
+            return removals, score, lcc_sizes
             
         finally:
             # Cleanup temporary files
@@ -141,8 +169,8 @@ class ModelExecutor:
             '--out_file', result_path
         ])
         
-        # Add model path if provided
-        if model_path:
+        # Add model path if provided (not for baseline, where model_path is the method name)
+        if model_path and model_type != 'baseline':
             cmd.extend(['--model_path', model_path])
         
         # Add model-specific parameters
@@ -151,16 +179,21 @@ class ModelExecutor:
             cmd.extend(['--step_ratio', str(step_ratio)])
         
         elif model_type == 'mind':
-            budget = kwargs.get('budget', 0.1)
-            cmd.extend(['--budget', str(budget)])
-            if 'max_steps' in kwargs:
-                cmd.extend(['--max_steps', str(kwargs['max_steps'])])
+            threshold = kwargs.get('threshold', 0.1)
+            cmd.extend(['--threshold', str(threshold)])
+            max_steps = kwargs.get('max_steps')
+            if max_steps not in (None, '', 'None', 'null'):
+                cmd.extend(['--max_steps', str(max_steps)])
         
         elif model_type == 'baseline':
-            method = kwargs.get('method', 'Degree')
-            cmd.extend(['--method', method])
-            if 'max_steps' in kwargs:
-                cmd.extend(['--max_steps', str(kwargs['max_steps'])])
+            # method is passed via model_path (the selected model name)
+            if model_path:
+                cmd.extend(['--method', model_path])
+            threshold = kwargs.get('threshold', 0.1)
+            cmd.extend(['--threshold', str(threshold)])
+            max_steps = kwargs.get('max_steps')
+            if max_steps not in (None, '', 'None', 'null'):
+                cmd.extend(['--max_steps', str(max_steps)])
         
         return cmd
     
@@ -186,7 +219,7 @@ class ModelExecutor:
     def _list_finder_models(self) -> List[Dict[str, Any]]:
         """List available FINDER models"""
         models = []
-        finder_dir = self.base_dir / 'AAA-NetDQN' / 'code' / 'FINDER' / 'models'
+        finder_dir = self.base_dir / 'FINDER' / 'code' / 'FINDER' / 'models'
         
         if not finder_dir.exists():
             return models
@@ -207,7 +240,7 @@ class ModelExecutor:
     def _list_mind_models(self) -> List[Dict[str, Any]]:
         """List available MIND-ND models"""
         models = []
-        mind_dir = self.base_dir / 'MIND-ND' / 'saved'
+        mind_dir = self.base_dir / 'MIND-ND' / 'saved' / 'hgnn_v4'
         
         if not mind_dir.exists():
             return models
@@ -217,8 +250,8 @@ class ModelExecutor:
             models.append({
                 'name': f"{ckpt_file.parent.name}/{ckpt_file.name}",
                 'type': 'mind',
-                'path': str(ckpt_file),
-                'checkpoint_files': [str(ckpt_file)]
+                'path': str(ckpt_file.resolve()),  # full absolute path for execution
+                'checkpoint_files': [str(ckpt_file.resolve())]
             })
         
         return models

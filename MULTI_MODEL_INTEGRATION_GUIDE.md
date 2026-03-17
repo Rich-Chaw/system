@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains the engineering approach for integrating models from different projects (AAA-NetDQN, MIND-ND, baselines) that may require different conda environments.
+This guide explains the engineering approach for integrating models from different projects (FINDER, MIND-ND, baselines) that may require different conda environments.
 
 ## Architecture Design
 
@@ -47,12 +47,12 @@ This guide explains the engineering approach for integrating models from differe
 
 Each model type has a standardized Python interface:
 
-**AAA-NetDQN/python_interface.py** (✓ Already exists)
+**FINDER/python_interface.py** (✓ Already exists)
 - Input: `--graph_file`, `--model_path`, `--step_ratio`
 - Output: JSON with `removals`, `score`, `MaxCCList`
 
 **MIND-ND/python_interface.py** (✓ Created)
-- Input: `--graph_file`, `--model_path`, `--budget`
+- Input: `--graph_file`, `--model_path`, `--threshold`
 - Output: JSON with `removals`, `robustness`, `lcc_sizes`
 
 **baselines/baseline_interface.py** (✓ Created)
@@ -76,7 +76,7 @@ removals, score, lcc_sizes = executor.execute_model(
     model_type='mind',  # or 'finder', 'baseline'
     model_path='/path/to/model.ckpt',
     graph=graph_object,
-    budget=0.1  # model-specific params
+    threshold=0.1  # model-specific params
 )
 
 # List available models
@@ -108,7 +108,7 @@ graph = processor.load_from_file('graph.pkl')
 # Execute FINDER model
 removals, score, lcc_sizes = executor.execute_model(
     model_type='finder',
-    model_path='AAA-NetDQN/code/FINDER/models/graphSage_BA',
+    model_path='FINDER/code/FINDER/models/graphSage_BA',
     graph=graph,
     step_ratio=0.01
 )
@@ -124,7 +124,7 @@ removals, score, lcc_sizes = executor.execute_model(
     model_type='mind',
     model_path='MIND-ND/saved/mind/mind.ckpt',
     graph=ig_graph,
-    budget=0.1
+    threshold=0.1
 )
 ```
 
@@ -144,7 +144,7 @@ removals, score, lcc_sizes = executor.execute_model(
 ```python
 models_to_compare = [
     {'type': 'finder', 'path': 'path/to/finder', 'params': {'step_ratio': 0.01}},
-    {'type': 'mind', 'path': 'path/to/mind.ckpt', 'params': {'budget': 0.1}},
+    {'type': 'mind', 'path': 'path/to/mind.ckpt', 'params': {'threshold': 0.1}},
     {'type': 'baseline', 'path': 'Degree', 'params': {}}
 ]
 
@@ -260,7 +260,7 @@ def dismantle_network():
 
 ```bash
 # Test FINDER
-python AAA-NetDQN/python_interface.py --graph_file test.pkl --model_path models/graphSage_BA
+python FINDER/python_interface.py --graph_file test.pkl --model_path models/graphSage_BA
 
 # Test MIND-ND
 conda run -n mind python MIND-ND/python_interface.py --graph_file test.pkl --model_path saved/mind/mind.ckpt

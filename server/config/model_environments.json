@@ -2,8 +2,8 @@
   "model_types": {
     "finder": {
       "name": "FINDER (DQN-based)",
-      "interface": "../AAA-NetDQN/python_interface.py",
-      "conda_env": null,
+      "interface": "../FINDER/python_interface.py",
+      "conda_env": "tf_py37",
       "python_path": null,
       "graph_format": "networkx",
       "parameters": {
@@ -19,16 +19,16 @@
     "mind": {
       "name": "MIND-ND (SAC-based)",
       "interface": "../MIND-ND/python_interface.py",
-      "conda_env": "mind",
+      "conda_env": "torch_py38",
       "python_path": null,
       "graph_format": "igraph",
       "parameters": {
-        "budget": {
+        "threshold": {
           "type": "float",
           "default": 0.1,
           "min": 0.01,
           "max": 1.0,
-          "description": "Budget for dismantling (fraction of nodes)"
+          "description": "threshold for dismantling (fraction of nodes)"
         },
         "max_steps": {
           "type": "int",
@@ -42,7 +42,7 @@
     "baseline": {
       "name": "Baseline Heuristics",
       "interface": "../baselines/baseline_interface.py",
-      "conda_env": null,
+      "conda_env": "torch_py38",
       "python_path": null,
       "graph_format": "igraph",
       "parameters": {

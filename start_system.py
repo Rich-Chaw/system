@@ -164,7 +164,7 @@ class SystemLauncher:
             return False
         
         # Check if models directory exists
-        models_dir = os.path.join(script_dir,'..', 'AAA-NetDQN', 'code', 'FINDER', 'models')
+        models_dir = os.path.join(script_dir,'..', 'FINDER', 'code', 'FINDER', 'models')
         if not os.path.exists(models_dir):
             print(f"⚠ Models directory not found: {models_dir}")
             print("  Please ensure your trained models are available")

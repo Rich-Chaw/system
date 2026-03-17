@@ -156,7 +156,7 @@ def main():
     logger.info("\n" + "=" * 40)
     logger.info("✓ System test completed!")
     logger.info("\nIf you see warnings about models, make sure to:")
-    logger.info("1. Place your trained models in: AAA-NetDQN/code/models/")
+    logger.info("1. Place your trained models in: FINDER/code/models/")
     logger.info("2. Restart the server")
     
     return True

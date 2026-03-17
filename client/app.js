@@ -162,168 +162,108 @@ class FinderNDClient {
 
     displayResults(results) {
         console.log('displayResults called with:', results);
-        
-        // Handle multi-model results (array format)
-        if (!results) {
-            console.warn('No results to display - results is null/undefined');
-            return;
-        }
-        
-        if (!Array.isArray(results)) {
-            console.warn('Results is not an array:', typeof results);
-            return;
-        }
-        
-        if (results.length === 0) {
-            console.warn('No results to display - empty array');
-            return;
-        }
-        
-        console.log('First result item:', results[0]);
-        
-        // For now, display the first model's results in the summary card
-        // In the future, this could show aggregated stats across all models
-        const firstResultItem = results[0];
-        
-        if (!firstResultItem) {
-            console.error('First result item is undefined');
-            return;
-        }
-        
-        const firstResult = firstResultItem.result;
-        
-        if (!firstResult) {
-            console.error('Result property is missing from first item:', firstResultItem);
-            return;
-        }
-        
-        if (!firstResult.solution) {
-            console.error('Solution is missing from result:', firstResult);
-            return;
-        }
-        
-        if (!firstResult.metrics) {
-            console.error('Metrics is missing from result:', firstResult);
-            return;
-        }
-        
-        console.log('Displaying results for first model');
-        
-        // Update summary stats
-        const nodesRemovedEl = document.getElementById('nodesRemoved');
-        const executionTimeEl = document.getElementById('executionTime');
-        const robustnessEl = document.getElementById('robustness');
-        const finalCCEl = document.getElementById('finalCC');
-        
-        if (nodesRemovedEl) nodesRemovedEl.textContent = firstResult.solution.length;
-        if (executionTimeEl) executionTimeEl.textContent = firstResult.execution_time.toFixed(2);
-        if (robustnessEl) robustnessEl.textContent = firstResult.metrics.robustness.toFixed(3);
-        if (finalCCEl) finalCCEl.textContent = firstResult.metrics.final_largest_cc;
+        if (!results || !Array.isArray(results) || results.length === 0) return;
 
         // Show results card
         const resultsCard = document.getElementById('resultsCard');
         if (resultsCard) resultsCard.style.display = 'block';
 
-        // Create charts
-        if (firstResult.metrics.largest_cc_evolution) {
-            this.createDismantlingChart(firstResult.metrics.largest_cc_evolution);
-        }
-        
-        if (firstResult.metrics) {
-            this.createMetricsChart(firstResult.metrics);
+        // Use first successful result for summary stats
+        const firstItem = results.find(r => r.result && !r.error);
+        if (!firstItem) {
+            console.warn('No successful results to display');
+            return;
         }
 
-        // Display solution details
-        if (firstResult.solution && firstResult.metrics.removal_sequence) {
-            this.displaySolutionDetails(firstResult.solution, firstResult.metrics.removal_sequence);
+        const { removals, score, lcc_sizes } = firstItem.result;
+
+        const nodesRemovedEl = document.getElementById('nodesRemoved');
+        const robustnessEl   = document.getElementById('robustness');
+        const finalCCEl      = document.getElementById('finalCC');
+        const executionTimeEl = document.getElementById('executionTime');
+
+        if (nodesRemovedEl) nodesRemovedEl.textContent = removals ? removals.length : 0;
+        if (robustnessEl)   robustnessEl.textContent   = score != null ? score.toFixed(4) : '-';
+        if (finalCCEl)      finalCCEl.textContent      = lcc_sizes && lcc_sizes.length ? lcc_sizes[lcc_sizes.length - 1] : '-';
+        if (executionTimeEl) executionTimeEl.textContent = '-';
+
+        // Draw LCC curve chart (multi-model)
+        this.createDismantlingChart(results);
+
+        // Display solution table for first result
+        if (removals && removals.length > 0) {
+            this.displaySolutionDetails(removals, lcc_sizes || []);
         }
     }
 
-    createDismantlingChart(ccEvolution) {
-        const ctx = document.getElementById('dismantlingChart').getContext('2d');
+    createDismantlingChart(results) {
+        const canvas = document.getElementById('dismantlingChart');
+        if (!canvas) return;
 
-        new Chart(ctx, {
+        // Destroy previous chart instance if any
+        if (this._dismantlingChart) {
+            this._dismantlingChart.destroy();
+        }
+
+        const colors = ['#667eea', '#ff6b6b', '#69b3a2', '#ffa500', '#9b59b6', '#1abc9c'];
+
+        const datasets = results
+            .filter(r => r.result && r.result.lcc_sizes && r.result.lcc_sizes.length > 0)
+            .map((item, i) => ({
+                label: item.modelConfig.name,
+                data: item.result.lcc_sizes,
+                borderColor: colors[i % colors.length],
+                backgroundColor: colors[i % colors.length] + '22',
+                fill: false,
+                tension: 0.3,
+                pointRadius: 2
+            }));
+
+        if (datasets.length === 0) return;
+
+        const maxLen = Math.max(...datasets.map(d => d.data.length));
+
+        this._dismantlingChart = new Chart(canvas.getContext('2d'), {
             type: 'line',
             data: {
-                labels: ccEvolution.map((_, i) => i + 1),
-                datasets: [{
-                    label: 'Largest Connected Component Size',
-                    data: ccEvolution,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
+                labels: Array.from({ length: maxLen }, (_, i) => i),
+                datasets
             },
             options: {
                 responsive: true,
                 plugins: {
-                    title: {
-                        display: true,
-                        text: 'Network Dismantling Progress'
-                    }
+                    title: { display: true, text: 'Network Dismantling Progress' },
+                    legend: { display: true }
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Removal Step'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Largest CC Size'
-                        }
-                    }
+                    x: { title: { display: true, text: 'Removal Step' } },
+                    y: { title: { display: true, text: 'Largest CC Size' } }
                 }
             }
         });
     }
 
-    createMetricsChart(metrics) {
-        const ctx = document.getElementById('metricsChart').getContext('2d');
-
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Nodes Removed', 'Nodes Remaining'],
-                datasets: [{
-                    data: [metrics.nodes_removed, metrics.removal_sequence[0]?.remaining_nodes || 0],
-                    backgroundColor: ['#ff6b6b', '#69b3a2'],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Node Removal Distribution'
-                    }
-                }
-            }
-        });
-    }
-
-    displaySolutionDetails(solution, removalSequence) {
+    displaySolutionDetails(removals, lcc_sizes) {
         const detailsDiv = document.getElementById('solutionDetails');
+        if (!detailsDiv) return;
 
-        let html = '<div class="row"><div class="col-2"><strong>Step</strong></div><div class="col-2"><strong>Node</strong></div><div class="col-4"><strong>Remaining Nodes</strong></div><div class="col-4"><strong>Largest CC</strong></div></div>';
+        let html = `<div class="row fw-bold border-bottom mb-1">
+            <div class="col-2">Step</div>
+            <div class="col-4">Node Removed</div>
+            <div class="col-6">Largest CC</div>
+        </div>`;
 
-        removalSequence.slice(0, 50).forEach(step => { // Show first 50 steps
-            html += `
-                <div class="removal-step row">
-                    <div class="col-2">${step.step}</div>
-                    <div class="col-2">${step.node_removed}</div>
-                    <div class="col-4">${step.remaining_nodes}</div>
-                    <div class="col-4">${step.largest_cc_size}</div>
-                </div>
-            `;
-        });
+        const limit = Math.min(removals.length, 50);
+        for (let i = 0; i < limit; i++) {
+            html += `<div class="removal-step row">
+                <div class="col-2">${i + 1}</div>
+                <div class="col-4">${removals[i]}</div>
+                <div class="col-6">${lcc_sizes[i + 1] != null ? lcc_sizes[i + 1] : '-'}</div>
+            </div>`;
+        }
 
-        if (removalSequence.length > 50) {
-            html += `<div class="text-muted text-center mt-2">... and ${removalSequence.length - 50} more steps</div>`;
+        if (removals.length > 50) {
+            html += `<div class="text-muted text-center mt-2">... and ${removals.length - 50} more steps</div>`;
         }
 
         detailsDiv.innerHTML = html;

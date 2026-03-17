@@ -45,7 +45,7 @@ client/
 ### Prerequisites
 - Python 3.7+
 - NetworkX, Flask, Flask-CORS
-- Trained GraphDQN models in `AAA-NetDQN/code/FINDER/models/`
+- Trained GraphDQN models in `FINDER/code/FINDER/models/`
 
 ### Installation
 
@@ -105,7 +105,7 @@ class Config:
     HOST = '0.0.0.0'
     PORT = 5000
     DEBUG = True
-    MODELS_DIR = './AAA-NetDQN/code/FINDER/models'
+    MODELS_DIR = './FINDER/code/FINDER/models'
     DEFAULT_STEP_RATIO = 0.0025
     MAX_GRAPH_SIZE = 10000
 ```
@@ -190,7 +190,7 @@ The frontend uses a component-based architecture:
 - Verify CORS is enabled
 
 ### Models not loading
-- Place trained models in `AAA-NetDQN/code/FINDER/models/`
+- Place trained models in `FINDER/code/FINDER/models/`
 - Check model directory permissions
 - Verify model file formats
 

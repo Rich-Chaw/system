@@ -69,10 +69,10 @@ def check_directory_structure():
     logger = logging.getLogger(__name__)
     
     required_paths = [
-        'AAA-NetDQN/code/FINDER_ND',
-        'AAA-NetDQN/code/FINDER_ND/src/lib',
-        'AAA-NetDQN/code/FINDER_ND/setup.py',
-        'AAA-NetDQN/code/FINDER_ND/GraphDQN.pyx',
+        'FINDER/code/FINDER_ND',
+        'FINDER/code/FINDER_ND/src/lib',
+        'FINDER/code/FINDER_ND/setup.py',
+        'FINDER/code/FINDER_ND/GraphDQN.pyx',
         'server',
         'client'
     ]
@@ -96,7 +96,7 @@ def compile_extensions():
     """Compile the Cython extensions"""
     logger = logging.getLogger(__name__)
     
-    finder_code_path = os.path.abspath('AAA-NetDQN/code')
+    finder_code_path = os.path.abspath('FINDER/code')
     
     logger.info(f"Compiling extensions in {finder_code_path}")
     
@@ -142,8 +142,8 @@ def verify_extensions():
     """Verify that extensions were compiled correctly"""
     logger = logging.getLogger(__name__)
     
-    finder_code_path = os.path.abspath('AAA-NetDQN/code')
-    finder_nd_path = os.path.abspath('AAA-NetDQN/code/FINDER_ND')
+    finder_code_path = os.path.abspath('FINDER/code')
+    finder_nd_path = os.path.abspath('FINDER/code/FINDER_ND')
 
     # Add to path for testing
     if finder_nd_path not in sys.path:
@@ -180,8 +180,8 @@ def test_graphdqn_import():
     """Test if GraphDQN can be imported and instantiated"""
     logger = logging.getLogger(__name__)
     
-    finder_nd_path = os.path.abspath('AAA-NetDQN/code')
-    finder_code_path = os.path.abspath('AAA-NetDQN/code/FINDER_ND')
+    finder_nd_path = os.path.abspath('FINDER/code')
+    finder_code_path = os.path.abspath('FINDER/code/FINDER_ND')
     if finder_nd_path not in sys.path:
         sys.path.insert(0, finder_nd_path)
     if finder_nd_path not in sys.path:
@@ -211,7 +211,7 @@ def create_test_directories():
     logger = logging.getLogger(__name__)
     
     directories = [
-        'AAA-NetDQN/code/models',
+        'FINDER/code/models',
         'server/logs',
         'client/temp'
     ]
@@ -268,7 +268,7 @@ def main():
     logger.info("\n" + "=" * 50)
     logger.info("✓ FINDER_ND system setup completed successfully!")
     logger.info("\nNext steps:")
-    logger.info("1. Place your trained models in: AAA-NetDQN/code/models/")
+    logger.info("1. Place your trained models in: FINDER/code/models/")
     logger.info("2. Start the system with: python start_system.py")
     logger.info("3. Or start components separately:")
     logger.info("   - Server: python run_server.py")
