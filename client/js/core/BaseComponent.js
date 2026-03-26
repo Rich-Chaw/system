@@ -1,5 +1,5 @@
 /**
- * Base Component Class for FINDER_ND System
+ * Base Component Class for NetworkDismantling System
  * Provides common functionality and event handling for all UI components
  */
 class BaseComponent {

@@ -1,4 +1,4 @@
-# FINDER_ND Network Dismantling System
+# NetworkDismantling Network Dismantling System
 
 A modern web-based system for network dismantling using deep reinforcement learning models (GraphDQN). Features a Flask backend and component-based frontend architecture.
 
@@ -212,7 +212,7 @@ The frontend uses a component-based architecture:
 
 ## 📄 License
 
-This system is part of the FINDER_ND research project.
+This system is part of the NetworkDismantling research project.
 
 ## 🤝 Contributing
 

@@ -9,6 +9,9 @@ dist/
 build/
 .Python
 
+# Data
+data/
+
 # Virtual Environment
 venv/
 env/

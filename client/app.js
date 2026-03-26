@@ -1,4 +1,4 @@
-// FINDER_ND Client Application - Refactored with Component Architecture
+// NetworkDismantling Client Application - Refactored with Component Architecture
 class FinderNDClient {
     constructor() {
         this.serverUrl = 'http://localhost:5000';

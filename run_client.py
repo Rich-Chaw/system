@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FINDER_ND Client Launcher
+NetworkDismantling Client Launcher
 Simple HTTP server for serving the client files
 """
 
@@ -29,7 +29,7 @@ class ClientHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 def main():
-    parser = argparse.ArgumentParser(description='FINDER_ND Client Server')
+    parser = argparse.ArgumentParser(description='NetworkDismantling Client Server')
     parser.add_argument('--host', default='localhost', help='Host address')
     parser.add_argument('--port', type=int, default=8080, help='Port number')
     parser.add_argument('--no-browser', action='store_true', help='Don\'t open browser automatically')
@@ -47,7 +47,7 @@ def main():
     # Create server
     server = HTTPServer((args.host, args.port), ClientHandler)
     
-    print(f"FINDER_ND Client Server starting...")
+    print(f"NetworkDismantling Client Server starting...")
     print(f"Serving at http://{args.host}:{args.port}")
     print(f"Press Ctrl+C to stop the server")
     

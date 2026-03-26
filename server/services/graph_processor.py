@@ -1,5 +1,5 @@
 """
-Graph Processing utilities for FINDER_ND server
+Graph Processing utilities for NetworkDismantling server
 Handles graph input/output and format conversion
 Supports both NetworkX and igraph formats
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FINDER_ND Server Launcher
+NetworkDismantling Server Launcher
 """
 
 import os
@@ -23,7 +23,7 @@ def setup_logging(log_level):
     )
 
 def main():
-    parser = argparse.ArgumentParser(description='FINDER_ND Network Dismantling Server')
+    parser = argparse.ArgumentParser(description='NetworkDismantling Network Dismantling Server')
     parser.add_argument('--config', choices=['development', 'production'], 
                        default='development', help='Configuration mode')
     parser.add_argument('--host', default='0.0.0.0', help='Host address')
@@ -44,7 +44,7 @@ def main():
     setup_logging(app.config.get('LOG_LEVEL', 'INFO'))
     
     logger = logging.getLogger(__name__)
-    logger.info(f"Starting FINDER_ND server in {args.config} mode")
+    logger.info(f"Starting NetworkDismantling server in {args.config} mode")
     logger.info(f"Server will run on http://{args.host}:{args.port}")
     
     # Check if models directory exists

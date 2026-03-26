@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型训练 - 网络拆解系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="sidebar.css">
+    <style>
+        .log-box {
+            background: #0d1117; color: #c9d1d9;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            height: 280px; overflow-y: auto; padding: 0.75rem 1rem;
+            border-radius: 6px; border: 1px solid #30363d;
+        }
+        .log-box .log-info  { color: #58a6ff; }
+        .log-box .log-warn  { color: #e3b341; }
+        .log-box .log-error { color: #f85149; }
+        .log-box .log-success { color: #3fb950; }
+        .metric-badge {
+            background: linear-gradient(135deg,#1e2130,#2a2f45);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px; padding: 1rem;
+            text-align: center; color: #fff;
+        }
+        .metric-badge .val { font-size: 1.6rem; font-weight: 700; color: #a5b4fc; }
+        .metric-badge .lbl { font-size: 0.75rem; color: rgba(255,255,255,0.45); margin-top: 2px; }
+        .section-card { border: none; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .section-card .card-header { background: #fff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
+        .param-group { background: #f8f9fa; border-radius: 8px; padding: 1rem; border-left: 3px solid #667eea; }
+        .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+        .status-dot.idle    { background:#6c757d; }
+        .status-dot.running { background:#ffc107; animation: pulse 1s infinite; }
+        .status-dot.done    { background:#28a745; }
+        .status-dot.error   { background:#dc3545; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .ckpt-item { background:#f8f9fa; border-radius:8px; padding:0.6rem 1rem;
+                     border:1px solid #e9ecef; display:flex; align-items:center; gap:0.75rem; }
+        .ckpt-item:hover { border-color:#667eea; }
+        .progress-thin { height: 6px; border-radius: 3px; }
+        .dataset-card {
+            background: #f8f9fa; border-radius: 8px; padding: 0.85rem 1rem;
+            border: 1px solid #e9ecef; margin-bottom: 0.6rem; position: relative;
+        }
+        .dataset-card:hover { border-color: #667eea; }
+        .dataset-card .remove-btn {
+            position: absolute; top: 0.5rem; right: 0.5rem;
+            background: none; border: none; color: #adb5bd; cursor: pointer; font-size: 0.85rem;
+        }
+        .dataset-card .remove-btn:hover { color: #dc3545; }
+        .algo-params { display: none; }
+        .algo-params.active { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="navbar navbar-dark bg-dark px-3" style="height:56px;">
+    <div class="d-flex align-items-center gap-3">
+        <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+        <span class="navbar-brand mb-0 h1 fs-6">
+            <i class="fas fa-network-wired me-2"></i>网络拆解系统
+        </span>
+    </div>
+    <div class="d-flex align-items-center" id="userBadge"></div>
+</nav>
+
+<div class="app-layout">
+    <!-- 侧边栏（内容由 sidebar.js 动态注入） -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav"></nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="container-fluid mt-3 pb-4">
+
+            <!-- 页面标题 -->
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="mb-0"><i class="fas fa-brain me-2 text-primary"></i>模型训练</h5>
+                    <small class="text-muted">配置训练参数，启动 SAC / DQN 模型训练任务</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <span id="trainStatusBadge" class="badge bg-secondary fs-6 px-3 py-2">
+                        <span class="status-dot idle"></span>空闲
+                    </span>
+                </div>
+            </div>
+
+            <div class="row g-3">
+
+                <!-- ══ 左列：配置 ══ -->
+                <div class="col-lg-4">
+
+                    <!-- 训练图配置 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-project-diagram me-2 text-primary"></i>训练图配置</span>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-xs btn-outline-secondary" style="padding:2px 8px;font-size:0.75rem" onclick="loadDatasetConfig()" title="载入数据集配置">
+                                    <i class="fas fa-folder-open"></i> 载入
+                                </button>
+                                <button class="btn btn-xs btn-outline-primary" style="padding:2px 8px;font-size:0.75rem" onclick="saveDatasetConfig()" title="保存数据集配置">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Tab 切换 -->
+                            <ul class="nav nav-tabs nav-fill px-3 pt-2" id="datasetModeTabs">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="tab-custom" href="#" onclick="switchDatasetMode('custom', this); return false;">
+                                        <i class="fas fa-sliders-h me-1"></i>自定义数据集
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="tab-load" href="#" onclick="switchDatasetMode('load', this); return false;">
+                                        <i class="fas fa-database me-1"></i>载入数据集
+                                    </a>
+                                </li>
+                            </ul>
+
+                            <!-- 自定义数据集面板 -->
+                            <div id="panel-custom" class="px-3 pb-3 pt-2">
+                                <div id="datasetList"></div>
+                                <button class="btn btn-sm btn-outline-primary w-100 mt-1" onclick="addDataset()">
+                                    <i class="fas fa-plus me-1"></i>添加配置
+                                </button>
+                            </div>
+
+                            <!-- 载入数据集面板 -->
+                            <div id="panel-load" class="px-3 pb-3 pt-2" style="display:none">
+                                <div class="mb-2">
+                                    <label class="form-label">选择已保存的数据集配置</label>
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select" id="savedDatasetSelect">
+                                            <option value="">-- 请选择 --</option>
+                                        </select>
+                                        <button class="btn btn-outline-secondary" onclick="refreshSavedDatasets()" title="刷新列表">
+                                            <i class="fas fa-sync"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="loadedDatasetPreview" class="text-muted" style="font-size:0.82rem;min-height:40px"></div>
+                                <button class="btn btn-sm btn-primary w-100 mt-2" onclick="applyLoadedDataset()">
+                                    <i class="fas fa-check me-1"></i>应用此配置
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 算法选择 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-robot me-2 text-primary"></i>训练算法</span>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-xs btn-outline-secondary" style="padding:2px 8px;font-size:0.75rem" onclick="loadAlgoConfig()" title="载入训练配置">
+                                    <i class="fas fa-folder-open"></i> 载入
+                                </button>
+                                <button class="btn btn-xs btn-outline-primary" style="padding:2px 8px;font-size:0.75rem" onclick="saveAlgoConfig()" title="保存训练配置">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">算法</label>
+                                <select class="form-select form-select-sm" id="algoSelect" onchange="onAlgoChange()">
+                                    <option value="sac">SAC（Soft Actor-Critic）</option>
+                                    <option value="sac_teacher">SAC-Teacher（含教师蒸馏）</option>
+                                    <option value="dqn">DQN / DDQN</option>
+                                    <option value="dqn_teacher">DQN-Teacher（含演示预训练）</option>
+                                </select>
+                            </div>
+
+                            <!-- SAC 参数 -->
+                            <div class="algo-params active param-group" id="params-sac">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label">学习率</label>
+                                        <input type="number" class="form-control form-control-sm" id="lr" value="0.0003" step="0.0001">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">批大小</label>
+                                        <input type="number" class="form-control form-control-sm" id="batchSize" value="128">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">总步数</label>
+                                        <input type="number" class="form-control form-control-sm" id="totalSteps" value="200000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">并行环境数</label>
+                                        <input type="number" class="form-control form-control-sm" id="numEnvs" value="64">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">折扣因子 γ</label>
+                                        <input type="number" class="form-control form-control-sm" id="gamma" value="0.99" step="0.01">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">熵系数 α</label>
+                                        <input type="number" class="form-control form-control-sm" id="alpha" value="0.005" step="0.001">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">目标更新频率</label>
+                                        <input type="number" class="form-control form-control-sm" id="targetFreq" value="200">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">每步更新次数</label>
+                                        <input type="number" class="form-control form-control-sm" id="numUpdates" value="16">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">经验池大小</label>
+                                        <input type="number" class="form-control form-control-sm" id="bufferSize" value="2000000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">开始学习步数</label>
+                                        <input type="number" class="form-control form-control-sm" id="learnStarts" value="2000">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch mt-1">
+                                            <input class="form-check-input" type="checkbox" id="adaptiveAlpha">
+                                            <label class="form-check-label">自适应 α（adaptive alpha）</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SAC-Teacher 额外参数 -->
+                            <div class="algo-params param-group mt-2" id="params-sac_teacher">
+                                <div class="fw-semibold mb-2" style="font-size:0.82rem;color:#667eea">教师蒸馏设置</div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <label class="form-label">教师方法</label>
+                                        <select class="form-select form-select-sm" id="teacherMethod">
+                                            <option value="">无</option>
+                                            <option value="spectral">Spectral</option>
+                                            <option value="betweenness">Betweenness</option>
+                                            <option value="CI">CI（Collective Influence）</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">演示数量</label>
+                                        <input type="number" class="form-control form-control-sm" id="numDemos" value="1000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">优先采样类型</label>
+                                        <select class="form-select form-select-sm" id="priorityType">
+                                            <option value="">无</option>
+                                            <option value="LCC">LCC</option>
+                                            <option value="TDE">TDE</option>
+                                            <option value="R">R</option>
+                                            <option value="TEACHER">TEACHER</option>
+                                            <option value="DDPGfD">DDPGfD</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="teacherDistill">
+                                            <label class="form-check-label">启用教师蒸馏（teacher_distill）</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="rewardShaping">
+                                            <label class="form-check-label">启用奖励塑形（reward_shaping）</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="bcSwitch">
+                                            <label class="form-check-label">行为克隆预训练（BC）</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- DQN 参数 -->
+                            <div class="algo-params param-group" id="params-dqn">
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <label class="form-label">DQN 变体</label>
+                                        <select class="form-select form-select-sm" id="dqnVariant">
+                                            <option value="dqn">DQN</option>
+                                            <option value="ddqn">DDQN（Double DQN）</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">ε 初始值</label>
+                                        <input type="number" class="form-control form-control-sm" id="epsStart" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">ε 终止值</label>
+                                        <input type="number" class="form-control form-control-sm" id="epsEnd" value="0.05" step="0.01">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">ε 衰减步数</label>
+                                        <input type="number" class="form-control form-control-sm" id="epsDecay" value="100000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">梯度裁剪范数</label>
+                                        <input type="number" class="form-control form-control-sm" id="maxGradNorm" value="10.0" step="0.5">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- DQN-Teacher 额外参数 -->
+                            <div class="algo-params param-group mt-2" id="params-dqn_teacher">
+                                <div class="fw-semibold mb-2" style="font-size:0.82rem;color:#667eea">DQN 演示预训练设置</div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <label class="form-label">教师方法</label>
+                                        <select class="form-select form-select-sm" id="dqnTeacherMethod">
+                                            <option value="">无</option>
+                                            <option value="spectral">Spectral</option>
+                                            <option value="betweenness">Betweenness</option>
+                                            <option value="CI">CI</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">演示数量</label>
+                                        <input type="number" class="form-control form-control-sm" id="dqnNumDemos" value="1000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">预训练步数</label>
+                                        <input type="number" class="form-control form-control-sm" id="pretainSteps" value="10000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">Margin 值</label>
+                                        <input type="number" class="form-control form-control-sm" id="marginValue" value="0.8" step="0.1">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">L2 系数</label>
+                                        <input type="number" class="form-control form-control-sm" id="l2Coeff" value="0.00001" step="0.00001">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="dqnPretrain">
+                                            <label class="form-check-label">启用 DQNfD 预训练</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="dqnRewardShaping">
+                                            <label class="form-check-label">启用奖励塑形</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GNN 配置 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-header"><i class="fas fa-sitemap me-2 text-primary"></i>GNN 编码器配置</div>
+                        <div class="card-body">
+                            <div class="param-group">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label">消息传递层数 (num_mps)</label>
+                                        <input type="number" class="form-control form-control-sm" id="gnnLayers" value="6">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">特征维度 (num_features)</label>
+                                        <input type="number" class="form-control form-control-sm" id="hiddenDim" value="16">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">注意力头数 (num_heads)</label>
+                                        <input type="number" class="form-control form-control-sm" id="numHeads" value="4">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">GNN 类型</label>
+                                        <select class="form-select form-select-sm" id="gnnType">
+                                            <optgroup label="经典 GNN">
+                                                <option value="gcn">GCN</option>
+                                                <option value="graphsage">GraphSAGE</option>
+                                                <option value="gat" selected>GAT</option>
+                                            </optgroup>
+                                            <optgroup label="MIND 系列">
+                                                <option value="mind">MIND</option>
+                                                <option value="hgnn">HGNN</option>
+                                                <option value="hgnn_v2">HGNN v2</option>
+                                                <option value="hgnn_v3">HGNN v3</option>
+                                                <option value="hgnn_v4">HGNN v4</option>
+                                                <option value="hgnn_v5">HGNN v5</option>
+                                            </optgroup>
+                                            <optgroup label="HM-GNN 系列">
+                                                <option value="hm_gnn">HM-GNN</option>
+                                                <option value="hm_gnn_v2">HM-GNN v2</option>
+                                                <option value="hm_gnn_v3">HM-GNN v3</option>
+                                                <option value="hm_gnn_v4">HM-GNN v4</option>
+                                                <option value="hm_gnn_v5">HM-GNN v5</option>
+                                            </optgroup>
+                                            <optgroup label="ID-GNN 系列">
+                                                <option value="idgcn">ID-GCN</option>
+                                                <option value="idgat">ID-GAT</option>
+                                                <option value="idgin">ID-GIN</option>
+                                                <option value="idsage">ID-SAGE</option>
+                                            </optgroup>
+                                            <optgroup label="GCNII">
+                                                <option value="gcnii">GCNII</option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="normalizeSwitch" checked>
+                                            <label class="form-check-label">Instance Normalization</label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="handcraftedSwitch">
+                                            <label class="form-check-label">手工特征（度/聚类/k-core 等，强制 5 维）</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 保存配置 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-header"><i class="fas fa-save me-2 text-primary"></i>保存配置</div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label">实验名称</label>
+                                <input type="text" class="form-control form-control-sm" id="expName" value="experiment_001">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">保存间隔（步数）</label>
+                                <input type="number" class="form-control form-control-sm" id="saveInterval" value="1000">
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="savebestSwitch" checked>
+                                <label class="form-check-label" for="savebestSwitch">仅保存最优模型</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" id="startTrainBtn" onclick="startTraining()">
+                            <i class="fas fa-play me-2"></i>开始训练
+                        </button>
+                        <button class="btn btn-warning" id="pauseTrainBtn" onclick="pauseTraining()" disabled>
+                            <i class="fas fa-pause me-2"></i>暂停训练
+                        </button>
+                        <button class="btn btn-danger" id="stopTrainBtn" onclick="stopTraining()" disabled>
+                            <i class="fas fa-stop me-2"></i>停止训练
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ══ 右列：监控 ══ -->
+                <div class="col-lg-8">
+
+                    <!-- 实时指标 -->
+                    <div class="row g-2 mb-3" id="metricsRow">
+                        <div class="col-6 col-md-3">
+                            <div class="metric-badge">
+                                <div class="val" id="mEpoch">0</div>
+                                <div class="lbl">当前步数</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="metric-badge">
+                                <div class="val" id="mReward">—</div>
+                                <div class="lbl">平均奖励</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="metric-badge">
+                                <div class="val" id="mLoss">—</div>
+                                <div class="lbl">策略损失</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="metric-badge">
+                                <div class="val" id="mBest">—</div>
+                                <div class="lbl">最优奖励</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 总进度 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">训练进度</small>
+                                <small id="progressLabel" class="text-muted">0 / 500 轮</small>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-primary" id="trainProgressBar" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 曲线图 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-chart-line me-2 text-primary"></i>训练曲线</span>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary active" onclick="switchChart('reward', this)">奖励</button>
+                                <button class="btn btn-outline-secondary" onclick="switchChart('loss', this)">损失</button>
+                                <button class="btn btn-outline-secondary" onclick="switchChart('lcc', this)">LCC</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="trainChart" height="130"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 训练日志 -->
+                    <div class="card section-card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-terminal me-2 text-primary"></i>训练日志</span>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearLog()">
+                                <i class="fas fa-trash"></i> 清空
+                            </button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="log-box" id="logBox"></div>
+                        </div>
+                    </div>
+
+                    <!-- 检查点管理 -->
+                    <div class="card section-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-database me-2 text-primary"></i>检查点管理</span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="refreshCkpts()">
+                                <i class="fas fa-sync"></i> 刷新
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="ckptList">
+                                <div class="text-muted text-center py-3">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>
+                                    暂无检查点，训练后自动生成
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/utils/auth.js"></script>
+<script>
+Auth.requireLogin();
+Auth.renderUserBadge('userBadge');
+</script>
+<script src="js/sidebar.js"></script>
+<script>
+// ── 图类型参数定义 ──────────────────────────────
+const GRAPH_PARAMS = {
+    barabasi_albert: {
+        label: 'Barabási-Albert (BA)',
+        params: [
+            { id: 'n', label: '节点数 N', type: 'number', default: 150 },
+            { id: 'm', label: '每步连边数 m', type: 'number', default: 3 }
+        ]
+    },
+    erdos_renyi: {
+        label: 'Erdős-Rényi (ER)',
+        params: [
+            { id: 'n', label: '节点数 N', type: 'number', default: 150 },
+            { id: 'p', label: '连边概率 p', type: 'number', default: 0.05, step: 0.01 }
+        ]
+    },
+    power_law: {
+        label: 'Power-Law Cluster',
+        params: [
+            { id: 'n', label: '节点数 N', type: 'number', default: 150 },
+            { id: 'm', label: '每步连边数 m', type: 'number', default: 3 },
+            { id: 'p', label: '三角形概率 p', type: 'number', default: 0.3, step: 0.05 }
+        ]
+    },
+    small_world: {
+        label: 'Watts-Strogatz (SW)',
+        params: [
+            { id: 'n', label: '节点数 N', type: 'number', default: 150 },
+            { id: 'k', label: '近邻数 k', type: 'number', default: 6 },
+            { id: 'p', label: '重连概率 p', type: 'number', default: 0.1, step: 0.05 }
+        ]
+    },
+    sbm: {
+        label: 'Stochastic Block Model (SBM)',
+        params: [
+            { id: 'n', label: '节点数 N', type: 'number', default: 150 },
+            { id: 'p_in', label: '块内连边概率 p_in', type: 'number', default: 0.3, step: 0.05 },
+            { id: 'p_out', label: '块间连边概率 p_out', type: 'number', default: 0.02, step: 0.01 },
+            { id: 'num_blocks', label: '块数', type: 'number', default: 3 }
+        ]
+    },
+    dcsbm: {
+        label: 'Degree-Corrected SBM (DCSBM)',
+        params: [
+            { id: 'n', label: '节点数 N', type: 'number', default: 150 },
+            { id: 'p_in', label: '块内基础概率 p_in', type: 'number', default: 0.3, step: 0.05 },
+            { id: 'p_out', label: '块间基础概率 p_out', type: 'number', default: 0.02, step: 0.01 },
+            { id: 'num_blocks', label: '块数', type: 'number', default: 3 }
+        ]
+    }
+};
+
+let datasetCount = 0;
+
+function addDataset(type = 'barabasi_albert', dsName = '') {
+    datasetCount++;
+    const id = datasetCount;
+    const container = document.getElementById('datasetList');
+    const div = document.createElement('div');
+    div.className = 'dataset-card';
+    div.id = `ds-${id}`;
+
+    const typeOptions = Object.entries(GRAPH_PARAMS)
+        .map(([k, v]) => `<option value="${k}" ${k === type ? 'selected' : ''}>${v.label}</option>`)
+        .join('');
+
+    div.innerHTML = `
+        <button class="remove-btn" onclick="removeDataset(${id})" title="删除"><i class="fas fa-times"></i></button>
+        <div class="mb-2">
+            <label class="form-label fw-semibold" style="font-size:0.82rem">数据集名称</label>
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control form-control-sm" id="dsName-${id}"
+                       placeholder="如 ba_train_set" value="${dsName}"
+                       oninput="checkDatasetExists(${id})">
+                <span class="input-group-text p-1" id="dsNameStatus-${id}" style="font-size:0.75rem;min-width:24px"></span>
+            </div>
+            <div id="dsNameTooltip-${id}" class="mt-1" style="font-size:0.75rem;display:none"></div>
+        </div>
+        <div class="mb-2">
+            <label class="form-label fw-semibold" style="font-size:0.82rem">图类型</label>
+            <select class="form-select form-select-sm" id="dsType-${id}" onchange="updateDsParams(${id})">
+                ${typeOptions}
+            </select>
+        </div>
+        <div id="dsParams-${id}"></div>
+        <div class="row g-2 mt-1">
+            <div class="col-6">
+                <label class="form-label" style="font-size:0.78rem">图数量</label>
+                <input type="number" class="form-control form-control-sm" id="dsCount-${id}" value="5000">
+            </div>
+        </div>`;
+    container.appendChild(div);
+    updateDsParams(id);
+}
+
+// 防抖计时器
+const _dsCheckTimers = {};
+function checkDatasetExists(id) {
+    clearTimeout(_dsCheckTimers[id]);
+    _dsCheckTimers[id] = setTimeout(() => _doCheckDataset(id), 600);
+}
+
+function _doCheckDataset(id) {
+    const nameEl   = document.getElementById(`dsName-${id}`);
+    const statusEl = document.getElementById(`dsNameStatus-${id}`);
+    const tipEl    = document.getElementById(`dsNameTooltip-${id}`);
+    const name = nameEl?.value?.trim();
+    if (!name) { statusEl.innerHTML = ''; tipEl.style.display = 'none'; return; }
+
+    const username = Auth.getUser()?.username || 'default';
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin text-muted"></i>';
+    fetch(`${Auth.SERVER_URL}/api/dataset/query?username=${encodeURIComponent(username)}&dataset_name=${encodeURIComponent(name)}`, {
+        headers: { 'X-Auth-Token': Auth.getToken() || '' }
+    }).then(r => r.json()).then(data => {
+        if (data.exists) {
+            const ds = data.dataset;
+            statusEl.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+            const graphSummary = ds.graphs.map(g => {
+                const p = JSON.parse(g.params || '{}');
+                const pStr = Object.entries(p).map(([k,v]) => `${k}=${v}`).join(', ');
+                return `${g.graph_type}×${g.count}（${pStr}）`;
+            }).join('；');
+            tipEl.style.display = '';
+            tipEl.innerHTML = `<span class="text-success"><i class="fas fa-database me-1"></i>已有数据集：共 ${ds.total_graphs} 图，创建于 ${ds.created_at.slice(0,10)}</span><br><span class="text-muted">${graphSummary}</span>`;
+        } else {
+            statusEl.innerHTML = '<i class="fas fa-plus-circle text-primary"></i>';
+            tipEl.style.display = '';
+            tipEl.innerHTML = '<span class="text-primary"><i class="fas fa-info-circle me-1"></i>训练时将自动生成此数据集</span>';
+        }
+    }).catch(() => { statusEl.innerHTML = ''; tipEl.style.display = 'none'; });
+}
+
+function updateDsParams(id) {
+    const type = document.getElementById(`dsType-${id}`).value;
+    const cfg = GRAPH_PARAMS[type];
+    const container = document.getElementById(`dsParams-${id}`);
+    container.innerHTML = `<div class="row g-2">` +
+        cfg.params.map(p => `
+            <div class="col-6">
+                <label class="form-label" style="font-size:0.78rem">${p.label}</label>
+                <input type="number" class="form-control form-control-sm"
+                       id="dsp-${id}-${p.id}" value="${p.default}" step="${p.step || 1}">
+            </div>`).join('') +
+        `</div>`;
+}
+
+function removeDataset(id) {
+    const el = document.getElementById(`ds-${id}`);
+    if (el) el.remove();
+}
+
+function onAlgoChange() {
+    const algo = document.getElementById('algoSelect').value;
+    // 隐藏所有
+    document.querySelectorAll('.algo-params').forEach(el => el.classList.remove('active'));
+    // 显示基础 SAC 参数（SAC 和 SAC-Teacher 共用）
+    if (algo === 'sac' || algo === 'sac_teacher') {
+        document.getElementById('params-sac').classList.add('active');
+    }
+    if (algo === 'sac_teacher') {
+        document.getElementById('params-sac_teacher').classList.add('active');
+    }
+    if (algo === 'dqn' || algo === 'dqn_teacher') {
+        document.getElementById('params-sac').classList.add('active'); // 共用基础参数
+        document.getElementById('params-dqn').classList.add('active');
+    }
+    if (algo === 'dqn_teacher') {
+        document.getElementById('params-dqn_teacher').classList.add('active');
+    }
+}
+
+// ── 训练状态模拟 ──────────────────────────────
+let trainTimer = null;
+let currentStep = 0;
+let totalSteps = 200000;
+let bestAuc = -Infinity;
+let chartMode = 'reward';
+const chartData = { reward: [], loss: [], lcc: [] };
+let trainChart = null;
+
+function initChart() {
+    const ctx = document.getElementById('trainChart').getContext('2d');
+    trainChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: '平均 AUC', data: [],
+            borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)',
+            fill: true, tension: 0.4, pointRadius: 1 }] },
+        options: { responsive: true, animation: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { title: { display: true, text: '步数（×50）' } },
+                      y: { title: { display: true, text: '值' } } } }
+    });
+}
+
+function switchChart(mode, btn) {
+    chartMode = mode;
+    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateChart();
+}
+
+function updateChart() {
+    if (!trainChart) return;
+    const modeMap = { reward: '平均 AUC', loss: 'Q 损失', lcc: '验证 AUC' };
+    const colorMap = { reward: '#667eea', loss: '#ff6b6b', lcc: '#3fb950' };
+    const d = chartData[chartMode];
+    trainChart.data.labels = d.map((_, i) => (i + 1) * 50);
+    trainChart.data.datasets[0].data = d;
+    trainChart.data.datasets[0].label = modeMap[chartMode];
+    trainChart.data.datasets[0].borderColor = colorMap[chartMode];
+    trainChart.data.datasets[0].backgroundColor = colorMap[chartMode] + '22';
+    trainChart.update('none');
+}
+
+function log(msg, type = 'info') {
+    const box = document.getElementById('logBox');
+    const ts = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = `log-${type}`;
+    line.textContent = `[${ts}] ${msg}`;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() { document.getElementById('logBox').innerHTML = ''; }
+
+function setStatus(state) {
+    const badge = document.getElementById('trainStatusBadge');
+    const map = {
+        idle:    ['bg-secondary', '空闲', 'idle'],
+        running: ['bg-warning text-dark', '训练中', 'running'],
+        done:    ['bg-success', '已完成', 'done'],
+        error:   ['bg-danger', '错误', 'error']
+    };
+    const [cls, label, dot] = map[state] || map.idle;
+    badge.className = `badge fs-6 px-3 py-2 ${cls}`;
+    badge.innerHTML = `<span class="status-dot ${dot}"></span>${label}`;
+}
+
+function getConfig() {
+    const algo = document.getElementById('algoSelect').value;
+    const gnn  = document.getElementById('gnnType').value;
+    return {
+        algo,
+        gnn,
+        lr:          parseFloat(document.getElementById('lr').value),
+        batch_size:  parseInt(document.getElementById('batchSize').value),
+        total_steps: parseInt(document.getElementById('totalSteps').value),
+        num_envs:    parseInt(document.getElementById('numEnvs').value),
+        gamma:       parseFloat(document.getElementById('gamma').value),
+        num_mps:     parseInt(document.getElementById('gnnLayers').value),
+        num_features:parseInt(document.getElementById('hiddenDim').value),
+        num_heads:   parseInt(document.getElementById('numHeads').value),
+    };
+}
+
+// 当前任务ID（由后端返回）
+let currentTaskId = null;
+
+function startTraining() {
+    const cfg = getConfig();
+    totalSteps = cfg.total_steps;
+    currentStep = 0;
+    bestAuc = -Infinity;
+    chartData.reward = []; chartData.loss = []; chartData.lcc = [];
+    currentTaskId = null;
+
+    document.getElementById('startTrainBtn').disabled = true;
+    document.getElementById('pauseTrainBtn').disabled = false;
+    document.getElementById('stopTrainBtn').disabled = false;
+    setStatus('running');
+
+    const expName = document.getElementById('expName').value;
+    log(`实验 "${expName}" 开始训练`, 'success');
+    log(`算法: ${cfg.algo.toUpperCase()}, GNN: ${cfg.gnn}, lr: ${cfg.lr}, batch: ${cfg.batch_size}`, 'info');
+    log(`total_steps: ${cfg.total_steps}, num_envs: ${cfg.num_envs}, num_mps: ${cfg.num_mps}`, 'info');
+
+    // 收集数据集配置
+    const datasets = [];
+    document.querySelectorAll('[id^="ds-"]').forEach(card => {
+        const id = card.id.split('-')[1];
+        const type  = document.getElementById(`dsType-${id}`)?.value;
+        const count = document.getElementById(`dsCount-${id}`)?.value;
+        const dsName = document.getElementById(`dsName-${id}`)?.value?.trim() || '';
+        if (!type) return;
+        const graphCfg = GRAPH_PARAMS[type];
+        const params = {};
+        graphCfg.params.forEach(p => {
+            params[p.id] = document.getElementById(`dsp-${id}-${p.id}`)?.value;
+        });
+        datasets.push({ type, count, params, dataset_name: dsName });
+        log(`训练数据集: ${dsName || type} — ${graphCfg.label} × ${count} 图`, 'info');
+    });
+
+    const username = Auth.getUser()?.username || 'default';
+
+    // ensure 所有数据集（有则复用，无则生成），完成后再创建任务
+    const ensurePromises = datasets.map(ds => {
+        if (!ds.dataset_name) return Promise.resolve(null);
+        return fetch(`${Auth.SERVER_URL}/api/dataset/ensure`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Auth-Token': Auth.getToken() || '' },
+            body: JSON.stringify({
+                username,
+                dataset_name: ds.dataset_name,
+                configs: [{ type: ds.type, count: ds.count, params: ds.params }]
+            })
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                if (data.exists) {
+                    log(`数据集 "${ds.dataset_name}" 已存在（${data.dataset.total_graphs} 图），直接复用`, 'success');
+                } else {
+                    log(`数据集 "${ds.dataset_name}" 已生成（${data.total_graphs} 图）→ ${data.path}`, 'success');
+                    // 刷新存在性提示
+                    const card = document.querySelector(`[id^="ds-"]`);
+                    document.querySelectorAll('[id^="ds-"]').forEach(c => {
+                        const cid = c.id.split('-')[1];
+                        if (document.getElementById(`dsName-${cid}`)?.value?.trim() === ds.dataset_name) {
+                            checkDatasetExists(cid);
+                        }
+                    });
+                }
+            }
+            return data;
+        }).catch(() => null);
+    });
+
+    Promise.all(ensurePromises).then(() => {
+        // 向后端登记任务
+        return fetch(`${Auth.SERVER_URL}/api/train/tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Auth-Token': Auth.getToken() || '' },
+            body: JSON.stringify({ username, exp_name: expName, params: cfg, datasets })
+        });
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            currentTaskId = data.task_id;
+            log(`任务已登记: ${data.task_id}（${data.run_dir}）`, 'info');
+            return fetch(`${Auth.SERVER_URL}/api/train/tasks/${currentTaskId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Token': Auth.getToken() || '' },
+                body: JSON.stringify({ status: 'running' })
+            });
+        }
+    }).catch(() => log('服务端不可用，任务仅在本地运行', 'warn'));
+
+    trainTimer = setInterval(trainStep, 200);
+
+    // localStorage 记录
+    const trainRecords = JSON.parse(localStorage.getItem('nd_train_records') || '[]');
+    trainRecords.push({
+        expName, algo: cfg.algo, gnn: cfg.gnn,
+        lr: cfg.lr, batchSize: cfg.batch_size, totalSteps: cfg.total_steps,
+        datasets: datasets.map(d => d.dataset_name || d.type), date: new Date().toLocaleString()
+    });
+    localStorage.setItem('nd_train_records', JSON.stringify(trainRecords));
+}
+
+function trainStep() {
+    currentStep += 50; // 每 tick 模拟 50 步
+    const progress = currentStep / totalSteps;
+
+    // 模拟 SAC/DQN 风格的 AUC 曲线（从低到高收敛）
+    const auc   = 0.3 + progress * 0.45 + (Math.random() - 0.5) * 0.06;
+    const qLoss = 0.8 * Math.exp(-progress * 3) + Math.random() * 0.04;
+    const valAuc = 0.28 + progress * 0.42 + (Math.random() - 0.5) * 0.04;
+
+    chartData.reward.push(parseFloat(auc.toFixed(4)));
+    chartData.loss.push(parseFloat(qLoss.toFixed(4)));
+    chartData.lcc.push(parseFloat(valAuc.toFixed(4)));
+
+    if (auc > bestAuc) {
+        bestAuc = auc;
+        document.getElementById('mBest').textContent = auc.toFixed(3);
+    }
+
+    document.getElementById('mEpoch').textContent = currentStep;
+    document.getElementById('mReward').textContent = auc.toFixed(3);
+    document.getElementById('mLoss').textContent = qLoss.toFixed(4);
+
+    const pct = Math.min(progress * 100, 100).toFixed(1);
+    document.getElementById('trainProgressBar').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent =
+        `${currentStep.toLocaleString()} / ${totalSteps.toLocaleString()} 步`;
+
+    if (chartData.reward.length % 10 === 0) updateChart();
+
+    if (chartData.reward.length % 20 === 0) {
+        const algo = document.getElementById('algoSelect').value.toUpperCase();
+        log(`[${currentStep} steps] ${algo} — AUC: ${auc.toFixed(4)}, Q-loss: ${qLoss.toFixed(4)}, Val-AUC: ${valAuc.toFixed(4)}`, 'info');
+    }
+
+    const saveInterval = parseInt(document.getElementById('saveInterval').value) || 1000;
+    if (currentStep % (saveInterval * 50) < 50) {
+        addCheckpoint(currentStep, auc);
+        log(`[${currentStep} steps] 检查点已保存`, 'warn');
+    }
+
+    if (currentStep >= totalSteps) {
+        clearInterval(trainTimer); trainTimer = null;
+        setStatus('done');
+        log('训练完成！', 'success');
+        document.getElementById('startTrainBtn').disabled = false;
+        document.getElementById('pauseTrainBtn').disabled = true;
+        document.getElementById('stopTrainBtn').disabled = true;
+        updateChart();
+        if (currentTaskId) {
+            fetch(`${Auth.SERVER_URL}/api/train/tasks/${currentTaskId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Token': Auth.getToken() || '' },
+                body: JSON.stringify({ status: 'succeeded', current_step: currentStep, best_auc: bestAuc })
+            });
+        }
+    }
+}
+
+function pauseTraining() {
+    if (trainTimer) {
+        clearInterval(trainTimer); trainTimer = null;
+        document.getElementById('pauseTrainBtn').innerHTML = '<i class="fas fa-play me-2"></i>继续训练';
+        document.getElementById('pauseTrainBtn').onclick = resumeTraining;
+        log('训练已暂停', 'warn');
+        setStatus('idle');
+    }
+}
+
+function resumeTraining() {
+    trainTimer = setInterval(trainStep, 200);
+    document.getElementById('pauseTrainBtn').innerHTML = '<i class="fas fa-pause me-2"></i>暂停训练';
+    document.getElementById('pauseTrainBtn').onclick = pauseTraining;
+    log('训练已恢复', 'info');
+    setStatus('running');
+}
+
+function stopTraining() {
+    if (trainTimer) { clearInterval(trainTimer); trainTimer = null; }
+    document.getElementById('startTrainBtn').disabled = false;
+    document.getElementById('pauseTrainBtn').disabled = true;
+    document.getElementById('stopTrainBtn').disabled = true;
+    document.getElementById('pauseTrainBtn').innerHTML = '<i class="fas fa-pause me-2"></i>暂停训练';
+    document.getElementById('pauseTrainBtn').onclick = pauseTraining;
+    setStatus('idle');
+    log('训练已手动停止', 'error');
+    if (currentTaskId) {
+        fetch(`${Auth.SERVER_URL}/api/train/tasks/${currentTaskId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Auth-Token': Auth.getToken() || '' },
+            body: JSON.stringify({ status: 'stopped', current_step: currentStep })
+        });
+    }
+}
+
+let ckpts = [];
+function addCheckpoint(step, auc) {
+    const expName = document.getElementById('expName').value;
+    const algo = document.getElementById('algoSelect').value;
+    const gnn  = document.getElementById('gnnType').value;
+    const ckptName = `${expName}_${algo}_${gnn}_step${step}.ckpt`;
+    const isBest = auc >= bestAuc;
+    ckpts.unshift({ step, auc: auc.toFixed(4), name: ckptName, time: new Date().toLocaleTimeString() });
+    renderCkpts();
+
+    // 写入模型记录到 localStorage
+    const modelRecords = JSON.parse(localStorage.getItem('nd_model_records') || '[]');
+    modelRecords.push({ name: ckptName, algo, gnn, step, auc: auc.toFixed(4), date: new Date().toLocaleString() });
+    localStorage.setItem('nd_model_records', JSON.stringify(modelRecords));
+
+    // 向后端保存检查点文件并登记
+    if (currentTaskId) {
+        const metrics = {
+            reward: chartData.reward.at(-1),
+            loss:   chartData.loss.at(-1),
+            lcc:    chartData.lcc.at(-1)
+        };
+        fetch(`${Auth.SERVER_URL}/api/train/tasks/${currentTaskId}/checkpoint`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Auth-Token': Auth.getToken() || '' },
+            body: JSON.stringify({ step, auc, is_best: isBest ? 1 : 0, metrics })
+        }).catch(() => {});
+    }
+}
+
+function renderCkpts() {
+    const el = document.getElementById('ckptList');
+    if (!ckpts.length) {
+        el.innerHTML = '<div class="text-muted text-center py-3"><i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>暂无检查点</div>';
+        return;
+    }
+    el.innerHTML = ckpts.map((c, i) => `
+        <div class="ckpt-item mb-2">
+            <i class="fas fa-file-archive text-primary"></i>
+            <div class="flex-grow-1">
+                <div class="fw-semibold" style="font-size:0.85rem">${c.name}</div>
+                <small class="text-muted">${c.step.toLocaleString()} 步 · AUC ${c.auc} · ${c.time}</small>
+            </div>
+            <button class="btn btn-sm btn-outline-success" onclick="loadCkpt(${i})" title="加载到评估">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteCkpt(${i})" title="删除">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>`).join('');
+}
+
+function refreshCkpts() { renderCkpts(); log('检查点列表已刷新', 'info'); }
+function loadCkpt(i) { log(`检查点 "${ckpts[i].name}" 已标记，可在评估页加载`, 'success'); }
+function deleteCkpt(i) { ckpts.splice(i, 1); renderCkpts(); }
+
+// ── 数据集模式切换 ──────────────────────────────
+let datasetMode = 'custom';
+
+function switchDatasetMode(mode, tabEl) {
+    datasetMode = mode;
+    document.querySelectorAll('#datasetModeTabs .nav-link').forEach(t => t.classList.remove('active'));
+    tabEl.classList.add('active');
+    document.getElementById('panel-custom').style.display = mode === 'custom' ? '' : 'none';
+    document.getElementById('panel-load').style.display   = mode === 'load'   ? '' : 'none';
+    if (mode === 'load') refreshSavedDatasets();
+}
+
+function refreshSavedDatasets() {
+    const saved = JSON.parse(localStorage.getItem('nd_dataset_configs') || '{}');
+    const sel = document.getElementById('savedDatasetSelect');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">-- 请选择 --</option>';
+    Object.keys(saved).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = `${name}（${saved[name].savedAt || ''}）`;
+        sel.appendChild(opt);
+    });
+    if (prev && saved[prev]) sel.value = prev;
+    sel.onchange = () => previewSavedDataset(sel.value);
+    previewSavedDataset(sel.value);
+}
+
+function previewSavedDataset(name) {
+    const el = document.getElementById('loadedDatasetPreview');
+    if (!name) { el.textContent = ''; return; }
+    const saved = JSON.parse(localStorage.getItem('nd_dataset_configs') || '{}');
+    const cfg = saved[name];
+    if (!cfg) { el.textContent = ''; return; }
+    el.innerHTML = cfg.configs.map(c =>
+        `<span class="badge bg-light text-dark border me-1 mb-1">${GRAPH_PARAMS[c.type]?.label || c.type} × ${c.count}</span>`
+    ).join('');
+}
+
+function applyLoadedDataset() {
+    const name = document.getElementById('savedDatasetSelect').value;
+    if (!name) { alert('请先选择一个配置'); return; }
+    const saved = JSON.parse(localStorage.getItem('nd_dataset_configs') || '{}');
+    if (!saved[name]) return;
+    switchDatasetMode('custom', document.getElementById('tab-custom'));
+    document.getElementById('datasetList').innerHTML = '';
+    datasetCount = 0;
+    saved[name].configs.forEach(c => {
+        addDataset(c.type, c.dataset_name || '');
+        const id = datasetCount;
+        const cfg = GRAPH_PARAMS[c.type];
+        cfg.params.forEach(p => {
+            const el = document.getElementById(`dsp-${id}-${p.id}`);
+            if (el && c.params[p.id] !== undefined) el.value = c.params[p.id];
+        });
+        const countEl = document.getElementById(`dsCount-${id}`);
+        if (countEl) countEl.value = c.count;
+        // 触发存在性检查
+        checkDatasetExists(id);
+    });
+    log(`已载入数据集配置 "${name}"`, 'success');
+}
+
+// ── 数据集配置 载入/保存 ──────────────────────────────
+function saveDatasetConfig() {
+    const configs = [];
+    document.querySelectorAll('[id^="ds-"]').forEach(card => {
+        const id = card.id.split('-')[1];
+        const type = document.getElementById(`dsType-${id}`)?.value;
+        if (!type) return;
+        const cfg = GRAPH_PARAMS[type];
+        const params = {};
+        cfg.params.forEach(p => {
+            params[p.id] = document.getElementById(`dsp-${id}-${p.id}`)?.value;
+        });
+        configs.push({
+            type, params,
+            count: document.getElementById(`dsCount-${id}`)?.value,
+            dataset_name: document.getElementById(`dsName-${id}`)?.value?.trim() || ''
+        });
+    });
+    if (!configs.length) { alert('请先添加至少一个数据集配置'); return; }
+    const name = prompt('保存为（配置名称）：', 'dataset_config_1');
+    if (!name) return;
+
+    const saved = JSON.parse(localStorage.getItem('nd_dataset_configs') || '{}');
+    saved[name] = { configs, savedAt: new Date().toLocaleString() };
+    localStorage.setItem('nd_dataset_configs', JSON.stringify(saved));
+    log(`数据集配置 "${name}" 已保存到本地`, 'success');
+    alert(`数据集配置 "${name}" 已保存`);
+}
+
+function loadDatasetConfig() {
+    switchDatasetMode('load', document.getElementById('tab-load'));
+}
+
+// ── 算法配置 载入/保存 ──────────────────────────────
+function saveAlgoConfig() {
+    const name = prompt('保存为（名称）：', 'algo_config_1');
+    if (!name) return;
+    const cfg = {
+        algo: document.getElementById('algoSelect').value,
+        lr: document.getElementById('lr').value,
+        batchSize: document.getElementById('batchSize').value,
+        totalSteps: document.getElementById('totalSteps').value,
+        numEnvs: document.getElementById('numEnvs').value,
+        gamma: document.getElementById('gamma').value,
+        alpha: document.getElementById('alpha').value,
+        targetFreq: document.getElementById('targetFreq').value,
+        numUpdates: document.getElementById('numUpdates').value,
+        bufferSize: document.getElementById('bufferSize').value,
+        learnStarts: document.getElementById('learnStarts').value,
+        gnnType: document.getElementById('gnnType').value,
+        gnnLayers: document.getElementById('gnnLayers').value,
+        hiddenDim: document.getElementById('hiddenDim').value,
+        numHeads: document.getElementById('numHeads').value,
+        savedAt: new Date().toLocaleString()
+    };
+    const saved = JSON.parse(localStorage.getItem('nd_algo_configs') || '{}');
+    saved[name] = cfg;
+    localStorage.setItem('nd_algo_configs', JSON.stringify(saved));
+    alert(`训练配置 "${name}" 已保存`);
+}
+
+function loadAlgoConfig() {
+    const saved = JSON.parse(localStorage.getItem('nd_algo_configs') || '{}');
+    const keys = Object.keys(saved);
+    if (!keys.length) { alert('暂无已保存的训练配置'); return; }
+    const name = prompt(`选择配置（${keys.join(' / ')}）：`, keys[0]);
+    if (!name || !saved[name]) return;
+    const c = saved[name];
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
+    setVal('algoSelect', c.algo); onAlgoChange();
+    setVal('lr', c.lr); setVal('batchSize', c.batchSize);
+    setVal('totalSteps', c.totalSteps); setVal('numEnvs', c.numEnvs);
+    setVal('gamma', c.gamma); setVal('alpha', c.alpha);
+    setVal('targetFreq', c.targetFreq); setVal('numUpdates', c.numUpdates);
+    setVal('bufferSize', c.bufferSize); setVal('learnStarts', c.learnStarts);
+    setVal('gnnType', c.gnnType); setVal('gnnLayers', c.gnnLayers);
+    setVal('hiddenDim', c.hiddenDim); setVal('numHeads', c.numHeads);
+    alert(`已载入训练配置 "${name}"`);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initChart();
+    addDataset('barabasi_albert'); // 默认添加一个 BA 数据集
+});
+</script>
+</body>
+</html>

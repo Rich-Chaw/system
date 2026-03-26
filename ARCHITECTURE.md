@@ -2,7 +2,7 @@
 
 ## Overview
 
-FINDER_ND is a web-based network dismantling system with a Flask backend and component-based frontend. Models run in isolated conda environments and are invoked via subprocess through a unified `ModelExecutor` interface.
+NetworkDismantling is a web-based network dismantling system with a Flask backend and component-based frontend. Models run in isolated conda environments and are invoked via subprocess through a unified `ModelExecutor` interface.
 
 ## Architecture Diagram
 

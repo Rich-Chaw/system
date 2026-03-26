@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FINDER_ND System Launcher
+NetworkDismantling System Launcher
 Starts both server and client components
 """
 
@@ -20,7 +20,7 @@ class SystemLauncher:
     
     def start_server(self, host='0.0.0.0', port=5000, config='development'):
         """Start the server process"""
-        print(f"Starting FINDER_ND server on {host}:{port}...")
+        print(f"Starting FNetworkDismantling server on {host}:{port}...")
         
         cmd = [
             sys.executable, os.path.join(os.path.dirname(__file__), 'run_server.py'),
@@ -66,7 +66,7 @@ class SystemLauncher:
     
     def start_client(self, host='localhost', port=8080, no_browser=False):
         """Start the client process"""
-        print(f"Starting FINDER_ND client on {host}:{port}...")
+        print(f"Starting NetworkDismantling client on {host}:{port}...")
         
         cmd = [
             sys.executable, os.path.join(os.path.dirname(__file__), 'run_client.py'),
@@ -114,7 +114,7 @@ class SystemLauncher:
     
     def stop_all(self):
         """Stop all processes"""
-        print("\nStopping FINDER_ND system...")
+        print("\nStopping NetworkDismantling system...")
         self.running = False
         
         if self.server_process:
@@ -175,7 +175,7 @@ class SystemLauncher:
         return True
 
 def main():
-    parser = argparse.ArgumentParser(description='FINDER_ND System Launcher')
+    parser = argparse.ArgumentParser(description='NetworkDismantling System Launcher')
     parser.add_argument('--server-host', default='0.0.0.0', help='Server host address')
     parser.add_argument('--server-port', type=int, default=5000, help='Server port')
     parser.add_argument('--client-host', default='localhost', help='Client host address')
@@ -205,7 +205,7 @@ def main():
             sys.exit(1)
         
         print("\n" + "="*60)
-        print("FINDER_ND Network Dismantling System")
+        print("Network Dismantling System")
         print("="*60)
         
         success = True
@@ -228,7 +228,7 @@ def main():
         
         if success:
             print("\n" + "="*60)
-            print("✓ FINDER_ND System is running!")
+            print("✓ NetworkDismantling System is running!")
             print(f"  Server: http://{args.server_host}:{args.server_port}")
             if not args.server_only:
                 print(f"  Client: http://{args.client_host}:{args.client_port}")
@@ -239,7 +239,7 @@ def main():
             while launcher.running:
                 time.sleep(1)
         else:
-            print("\n✗ Failed to start FINDER_ND system")
+            print("\n✗ Failed to start NetworkDismantling system")
             launcher.stop_all()
             sys.exit(1)
 

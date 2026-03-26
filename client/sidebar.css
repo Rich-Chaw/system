@@ -1,0 +1,115 @@
+/* ── 整体布局 ── */
+.app-layout {
+    display: flex;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+}
+
+/* ── 侧边栏 ── */
+.sidebar {
+    width: 200px;
+    min-width: 200px;
+    background: #1e2130;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.25s ease, min-width 0.25s ease;
+    overflow: hidden;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    z-index: 100;
+}
+
+.sidebar.collapsed {
+    width: 56px;
+    min-width: 56px;
+}
+
+.sidebar-nav {
+    padding: 1rem 0;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.sidebar-section-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.3);
+    padding: 0.25rem 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .sidebar-section-label {
+    opacity: 0;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-item:hover {
+    background: rgba(255,255,255,0.07);
+    color: #fff;
+}
+
+.sidebar-item.active {
+    background: rgba(102,126,234,0.15);
+    color: #a5b4fc;
+    border-left-color: #667eea;
+}
+
+.sidebar-item i {
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 0.95rem;
+}
+
+.sidebar-item span {
+    transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .sidebar-item span {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── 主内容区 ── */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    background: #f8f9fa;
+}
+
+/* ── 服务器状态浮标 ── */
+.server-status-badge {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background: rgba(30,33,48,0.9);
+    color: rgba(255,255,255,0.8);
+    padding: 0.4rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    z-index: 999;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+    .sidebar { width: 56px; min-width: 56px; }
+    .sidebar .sidebar-item span,
+    .sidebar .sidebar-section-label { opacity: 0; pointer-events: none; }
+}

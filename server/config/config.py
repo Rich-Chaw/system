@@ -1,5 +1,5 @@
 """
-Configuration settings for FINDER_ND Server
+Configuration settings for NetworkDismantling Server
 """
 
 import os

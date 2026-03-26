@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for FINDER_ND system
+Test script for NetworkDismantling system
 """
 
 import os
@@ -127,7 +127,7 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
     
-    logger.info("FINDER_ND System Test")
+    logger.info("NetworkDismantling System Test")
     logger.info("=" * 40)
     
     # Test client files

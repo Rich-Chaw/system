@@ -1,10 +1,10 @@
 """
-Custom exceptions for FINDER_ND server
+Custom exceptions for NetworkDismantling server
 """
 
 
 class FinderNDException(Exception):
-    """Base exception for FINDER_ND system"""
+    """Base exception for NetworkDismantling system"""
     def __init__(self, message, status_code=500, payload=None):
         super().__init__()
         self.message = message

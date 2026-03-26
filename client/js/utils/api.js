@@ -1,6 +1,6 @@
 /**
  * API Client Utility
- * Centralized API communication for FINDER_ND system
+ * Centralized API communication for NetworkDismantling system
  */
 
 class APIClient {

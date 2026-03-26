@@ -1,5 +1,5 @@
 """
-Dismantling Engine for FINDER_ND
+Dismantling Engine for NetworkDismantling
 Executes network dismantling using trained GraphDQN models
 """
 

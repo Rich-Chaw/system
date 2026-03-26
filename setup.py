@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete setup script for FINDER_ND system
+Complete setup script for NetworkDismantling system
 This script will:
 1. Check dependencies
 2. Compile Cython extensions
@@ -227,7 +227,7 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
     
-    logger.info("FINDER_ND System Setup")
+    logger.info("NetworkDismantling System Setup")
     logger.info("=" * 50)
     
     # Check Python version
@@ -266,7 +266,7 @@ def main():
         sys.exit(1)
     
     logger.info("\n" + "=" * 50)
-    logger.info("✓ FINDER_ND system setup completed successfully!")
+    logger.info("✓ NetworkDismantling system setup completed successfully!")
     logger.info("\nNext steps:")
     logger.info("1. Place your trained models in: FINDER/code/models/")
     logger.info("2. Start the system with: python start_system.py")
